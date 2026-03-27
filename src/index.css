@@ -1,0 +1,308 @@
+:root {
+  --bg: #0b0d12;         /* Page background */
+  --surface: #12151e;    /* Card / sidebar background */
+  --s2: #181c28;         /* Hover / input background */
+  --s3: #1e2333;         /* Subtle background */
+  --s4: #242840;
+  --b: #232840;          /* Default border */
+  --b2: #2d3450;         /* Input border */
+  --accent: #4f7cff;     /* Primary blue */
+  --a2: #7c5cff;         /* Purple-blue */
+  --ag: rgba(79,124,255,.15);  /* Accent ghost */
+  --teal: #22d3b0;
+  --amber: #f5a623;
+  --red: #ff4d6d;
+  --green: #22c55e;
+  --purple: #a855f7;
+  --t: #e8eaf0;          /* Primary text */
+  --t2: #8890aa;         /* Secondary text */
+  --t3: #4a5068;         /* Muted text */
+  
+  --r: 10px;
+  --rs: 7px;
+  --rl: 16px;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--t);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Syne', sans-serif;
+  font-weight: 700;
+  margin: 0;
+}
+
+code, .mono {
+  font-family: 'DM Mono', monospace;
+}
+
+svg {
+  display: block;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+ul {
+  list-style: none;
+}
+
+select, input, button {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+
+/* Layout Utilities */
+.flex { display: flex; }
+.flex-1 { flex: 1; }
+.col { flex-direction: column; }
+.items-center { align-items: center; }
+.justify-center { justify-content: center; }
+.justify-between { justify-content: space-between; }
+.gap-1 { gap: 4px; }
+.gap-2 { gap: 8px; }
+.gap-3 { gap: 12px; }
+.gap-4 { gap: 16px; }
+.gap-6 { gap: 24px; }
+.grid { display: grid; }
+.w-full { width: 100%; }
+.h-full { height: 100%; }
+.overflow-hidden { overflow: hidden; }
+.overflow-y-auto { overflow-y: auto; }
+
+/* Typography */
+.text-xs { font-size: 11px; }
+.text-sm { font-size: 12px; }
+.text-base { font-size: 14px; }
+.text-lg { font-size: 16px; }
+.text-xl { font-size: 20px; }
+.text-2xl { font-size: 24px; }
+
+.font-medium { font-weight: 500; }
+.font-bold { font-weight: 700; }
+
+.text-t2 { color: var(--t2); }
+.text-t3 { color: var(--t3); }
+.text-accent { color: var(--accent); }
+.text-green { color: var(--green); }
+.text-red { color: var(--red); }
+.text-amber { color: var(--amber); }
+
+/* Components - Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--rs);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid transparent;
+  padding: 8px 16px;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 13px;
+}
+
+.btn-xs {
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+/* Button Variants */
+.bp {
+  background-color: var(--accent);
+  color: #fff;
+}
+.bp:hover { opacity: 0.9; }
+
+.bg {
+  background-color: transparent;
+  color: var(--t2);
+  border-color: var(--b);
+}
+.bg:hover { background-color: var(--s2); color: var(--t); }
+
+.bt {
+  background-color: var(--teal);
+  color: #000;
+}
+
+.bd {
+  background-color: transparent;
+  color: var(--red);
+  border-color: var(--red);
+}
+.bd:hover { background-color: rgba(255,77,109,0.1); }
+
+.bs2 {
+  background-color: var(--green);
+  color: #000;
+}
+
+/* Badges */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  background-color: var(--s3);
+  color: var(--t2);
+  border: 1px solid var(--b);
+}
+
+.badge::before {
+  content: '';
+  display: block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: currentColor;
+}
+
+.b-s { color: var(--green); border-color: rgba(34,197,94,0.3); background-color: rgba(34,197,94,0.1); }
+.b-w { color: var(--amber); border-color: rgba(245,166,35,0.3); background-color: rgba(245,166,35,0.1); }
+.b-e { color: var(--red); border-color: rgba(255,77,109,0.3); background-color: rgba(255,77,109,0.1); }
+.b-i { color: var(--accent); border-color: rgba(79,124,255,0.3); background-color: var(--ag); }
+.b-p { color: var(--purple); border-color: rgba(168,85,247,0.3); background-color: rgba(168,85,247,0.1); }
+.b-n { color: var(--t2); }
+
+/* Progress Bars */
+.progress-container {
+  width: 100%;
+  height: 4px;
+  background-color: var(--s3);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.pb-bl { background: linear-gradient(90deg, var(--accent), var(--a2)); }
+.pb-gr { background-color: var(--green); }
+.pb-am { background-color: var(--amber); }
+.pb-tl { background-color: var(--teal); }
+
+/* Cards */
+.card {
+  background-color: var(--surface);
+  border: 1px solid var(--b);
+  border-radius: var(--r);
+  padding: 16px;
+}
+.card-sm {
+  background-color: var(--surface);
+  border: 1px solid var(--b);
+  border-radius: var(--rs);
+  padding: 12px 14px;
+}
+
+/* Inputs / Selects */
+.input, .select {
+  background-color: var(--s2);
+  border: 1px solid var(--b2);
+  border-radius: var(--rs);
+  padding: 8px 12px;
+  color: var(--t);
+  outline: none;
+  transition: border-color 0.2s;
+}
+.input:focus, .select:focus {
+  border-color: var(--accent);
+}
+
+/* Forms layout */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.form-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--t2);
+}
+
+/* Tables */
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+thead {
+  background-color: var(--s2);
+}
+th {
+  padding: 10px 12px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--t3);
+  text-align: left;
+  font-weight: 500;
+}
+td {
+  padding: 14px 12px;
+  border-bottom: 1px solid var(--b);
+  font-size: 13px;
+}
+tbody tr {
+  transition: background-color 0.2s;
+}
+tbody tr:hover {
+  background-color: var(--s2);
+}
+tbody td:first-child {
+  font-weight: 500;
+  color: var(--t);
+}
+
+/* Toggles */
+.toggle {
+  width: 34px;
+  height: 19px;
+  background-color: var(--s3);
+  border-radius: 19px;
+  position: relative;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+.toggle.on {
+  background-color: var(--accent);
+}
+.toggle-knob {
+  width: 15px;
+  height: 15px;
+  background-color: #fff;
+  border-radius: 50%;
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  transition: transform 0.2s;
+}
+.toggle.on .toggle-knob {
+  transform: translateX(15px);
+}
