@@ -1,11 +1,85 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useToast } from '../components/Toast';
+import { useInvoices } from '../context/InvoiceContext';
 
 export default function ExportData() {
   const { toast } = useToast();
+  const { invoices } = useInvoices();
+
+  const [fromDate, setFromDate] = useState('2024-03-01');
+  const [toDate, setToDate] = useState(new Date().toISOString().split('T')[0]);
+  const [vendorFilter, setVendorFilter] = useState('All Vendors');
+  const [sourceFilter, setSourceFilter] = useState('All Sources');
+
+  const uniqueVendors = [...new Set(invoices.map(i => i.vendor).filter(Boolean))];
+
+  const filteredInvoices = invoices.filter(inv => {
+    // Basic date parsing block
+    const invDate = new Date(inv.date);
+    const fromD = new Date(fromDate);
+    const toD = new Date(toDate);
+    
+    // Normalize time to compare cleanly
+    fromD.setHours(0,0,0,0);
+    toD.setHours(23,59,59,999);
+    
+    const isWithinDate = isNaN(invDate.getTime()) ? true : (invDate >= fromD && invDate <= toD);
+    const matchVendor = vendorFilter === 'All Vendors' || inv.vendor === vendorFilter;
+    const matchSource = sourceFilter === 'All Sources' || 
+                        (sourceFilter === 'Email only' && inv.source === 'Email') || 
+                        (sourceFilter === 'Upload only' && inv.source === 'Upload');
+
+    return isWithinDate && matchVendor && matchSource;
+  });
 
   const handleExcelExport = () => {
-    toast('📊 Downloaded: invoices_march_2024.xlsx', 'green');
+    if (filteredInvoices.length === 0) {
+      toast('⚠ No invoices match the selected filters', 'amber');
+      return;
+    }
+
+    const headers = ['Invoice No', 'Vendor', 'Date', 'Confidence', 'Subtotal', 'SGST', 'CGST', 'IGST', 'Total', 'Source', 'Status'];
+    const rows = filteredInvoices.map(inv => [
+      inv.invoiceNo || 'N/A',
+      inv.vendor || 'N/A',
+      inv.date || 'N/A',
+      inv.confidence ? `${inv.confidence}%` : 'N/A',
+      inv.subtotal || '0',
+      inv.sgst || '0',
+      inv.cgst || '0',
+      inv.igst || '0',
+      inv.total || '0',
+      inv.source || 'N/A',
+      inv.status || 'N/A'
+    ]);
+
+    const escapeCSV = (field) => {
+      if (field === undefined || field === null) return '""';
+      const str = String(field);
+      if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    };
+
+    const csvContent = [
+      headers.map(escapeCSV).join(','),
+      ...rows.map(row => row.map(escapeCSV).join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    
+    link.href = url;
+    link.setAttribute('download', `invoices_export_${new Date().toISOString().split('T')[0]}.csv`);
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    toast(`📊 Downloaded ${filteredInvoices.length} invoices as CSV`, 'green');
   };
 
   const handleDbPush = () => {
@@ -33,26 +107,27 @@ export default function ExportData() {
               <div className="flex items-center gap-3">
                 <div className="form-group flex-1">
                   <label className="form-label">From Date</label>
-                  <input type="date" className="input" defaultValue="2024-03-01" />
+                  <input type="date" className="input" value={fromDate} onChange={e => setFromDate(e.target.value)} />
                 </div>
                 <div className="form-group flex-1">
                   <label className="form-label">To Date</label>
-                  <input type="date" className="input" defaultValue="2024-03-31" />
+                  <input type="date" className="input" value={toDate} onChange={e => setToDate(e.target.value)} />
                 </div>
               </div>
 
               <div className="form-group">
                 <label className="form-label">Vendor</label>
-                <select className="select">
+                <select className="select" value={vendorFilter} onChange={e => setVendorFilter(e.target.value)}>
                   <option>All Vendors</option>
-                  <option>TCS</option>
-                  <option>Infosys</option>
+                  {uniqueVendors.map(vendor => (
+                    <option key={vendor} value={vendor}>{vendor}</option>
+                  ))}
                 </select>
               </div>
 
               <div className="form-group">
                 <label className="form-label">Source</label>
-                <select className="select">
+                <select className="select" value={sourceFilter} onChange={e => setSourceFilter(e.target.value)}>
                   <option>All Sources</option>
                   <option>Email only</option>
                   <option>Upload only</option>
@@ -106,11 +181,11 @@ export default function ExportData() {
             <div className="flex col gap-4">
               <div className="flex items-center justify-between" style={{ paddingBottom: '12px', borderBottom: '1px solid var(--b)' }}>
                 <span style={{ color: 'var(--t2)' }}>Ready to push</span>
-                <span style={{ fontWeight: 700, color: 'var(--green)' }}>24 invoices</span>
+                <span style={{ fontWeight: 700, color: 'var(--green)' }}>{filteredInvoices.length} invoices</span>
               </div>
               <div className="flex items-center justify-between" style={{ paddingBottom: '12px', borderBottom: '1px solid var(--b)' }}>
                 <span style={{ color: 'var(--t2)' }}>Already in DB</span>
-                <span style={{ fontWeight: 700 }}>123 invoices</span>
+                <span style={{ fontWeight: 700 }}>24 invoices</span>
               </div>
               <div className="flex items-center justify-between" style={{ paddingBottom: '12px' }}>
                 <span style={{ color: 'var(--t2)' }}>Duplicates blocked</span>

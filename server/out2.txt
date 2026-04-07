@@ -1,0 +1,63 @@
+[dotenv@17.3.1] injecting env (1) from .env -- tip: ΓÜÖ∩╕Å  load multiple .env files with { path: ['.env.local', '.env'] }
+[EXTRACT] Module initialized. Key available: true
+AI-Extraction (Gemini) starting for: test2.jpg...
+[AI] Dispatching to Gemini (Format: image/jpeg)...
+Pre-processing: test2.jpg...
+OCRing: test2.jpg...
+=== [OCR DIAGNOSTIC] RAW TEXT OUTPUT ===
+Tax Invoice
+rr, Arts
+b 1st Floor 117 ΓÇ£JAI MATA Di Compound, 421302
+Phone: . email
+SET State: 27eMaarashtra
+UDYAM REG: MH-33-0441832
+Bill To: Invoice Details:
+Rach Textile No: KA-25/26-456
+25 SHREE VENKTESHUWAR BHAWAN Vimeal Date: 28/02/2026
+Gs > Ste 27-Maharashtra | Flace Of Supply. 27-Maharashtra
+1tem name HSN/ SAC Quantity price/| GST( )| Amount( )
+Unit( )|
+N po preven Round Of - oss
+wswysac | Teale oT | Total Tax) | Tol B 2431400
+ow | 0 8) Invoice Amount in Words:
+soa passe 2s] seer] as] sas 135783 ry our Thousand Trea Hundred
+Tomi] mes] | wem| _ |wase Las7aa] Fourcen Rupees only
+Received 200
+sabnce 2431400
+Terms 8 Conditions:
++ Our Responsiifty ceases as soon as the goods leaves our premises.
+┬½ Payment within Due Date otherwise 24% pa. interest wil be charged.
+ΓÇ£Subject to Mumba jurisdiction
+Bank Detail: For Kanaiya Arts:
+EYEE Name |
+Ei
+Cris LIMITED, GHODBUNDER ROAD
+BEST cco vo
+ia uthorized Signa
+Le FC eode: 1 Authorized Signatory
+Account holders name
+
+========================================
+[OCR DIAGNOSTIC] Scanning 32 lines for product rows...
+
+[OCR DIAGNOSTIC] --> Possible Regex Match on Line 15: "ow | 0 8) Invoice Amount in Words:"
+    [SKIPPED] Likely garbage/QR code noise: ow |
+
+[OCR DIAGNOSTIC] Finished. Found 0 valid line items.
+=== EXTRACTION RESULT ===
+{
+  "invoiceNo": "KA-25/26-456",
+  "date": "28/02/2026",
+  "vendor": "rr Arts",
+  "subtotal": "",
+  "sgst": "",
+  "cgst": "",
+  "igst": "",
+  "totalTax": "",
+  "total": "24314.00",
+  "gstin": "",
+  "lineItems": [],
+  "confidence": 98,
+  "rawText": "Tax Invoice\nrr, Arts\nb 1st Floor 117 ΓÇ£JAI MATA Di Compound, 421302\nPhone: . email\nSET State: 27eMaarashtra\nUDYAM REG: MH-33-0441832\nBill To: Invoice Details:\nRach Textile No: KA-25/26-456\n25 SHREE VENKTESHUWAR BHAWAN Vimeal Date: 28/02/2026\nGs > Ste 27-Maharashtra | Flace Of Supply. 27-Maharashtra\n1tem name HSN/ SAC Quantity price/| GST( )| Amount( )\nUnit( )|\nN po preven Round Of - oss\nwswysac | Teale oT | Total Tax) | Tol B 2431400\now | 0 8) Invoice Amount in Words:\nsoa passe 2s] seer] as] sas 135783 ry our Thousand Trea Hundred\nTomi] mes] | wem| _ |wase Las7aa] Fourcen Rupees only\nReceived 200\nsabnce 2431400\nTerms 8 Conditions:\n+ Our Responsiifty ceases as soon as the goods leaves our premises.\n┬½ Payment within Due Date otherwise 24% pa. interest wil be charged.\nΓÇ£Subject to Mumba jurisdiction\nBank Detail: For Kanaiya Arts:\nEYEE Name |\nEi\nCris LIMITED, GHODBUNDER ROAD\nBEST cco vo\nia uthorized Signa\nLe FC eode: 1 Authorized Signatory\nAccount holders name\n",
+  "fileName": "test2.jpg"
+}

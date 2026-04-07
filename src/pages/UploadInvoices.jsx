@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../components/Toast';
+import { useInvoices } from '../context/InvoiceContext';
 import { processInvoice } from '../utils/extraction';
 
 export default function UploadInvoices() {
@@ -9,6 +10,7 @@ export default function UploadInvoices() {
   const [uploadedFile, setUploadedFile] = useState(null); // { name, type }
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { invoices } = useInvoices();
   const fileInputRef = useRef(null);
 
   const [toggles, setToggles] = useState({
@@ -215,48 +217,55 @@ export default function UploadInvoices() {
 
         {/* Right card - Queue */}
         <div className="card">
-          <h3 style={{ fontSize: '14px', marginBottom: '16px' }}>Today's Queue</h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 style={{ fontSize: '14px', margin: 0 }}>Today's Queue</h3>
+            <span className="text-xs text-t2">{invoices.length} invoices</span>
+          </div>
+          
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            
-            <div className="flex items-center justify-between" style={{ padding: '8px 0' }}>
-              <div>
-                <div style={{ fontWeight: 500, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  Infosys_March_2024.pdf
+            {invoices.length > 0 ? (
+              invoices.slice(0, 5).map(inv => (
+                <div key={inv.id} className="flex items-center justify-between" style={{ padding: '8px 0', borderBottom: '1px solid var(--b)' }}>
+                  <div>
+                    <div style={{ fontWeight: 500, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      {inv.filename || inv.invoiceNo || 'Unknown Invoice'}
+                    </div>
+                    <div style={{ fontSize: '12px', color: 'var(--t2)' }}>
+                      {inv.vendor} · ₹{inv.total}
+                    </div>
+                  </div>
+                  <span className={`badge ${inv.status === 'Exported' ? 'b-s' : 'b-w'}`}>
+                    {inv.status || 'Done'}
+                  </span>
                 </div>
-                <div style={{ fontSize: '12px', color: 'var(--t2)' }}>1.2 MB · text</div>
+              ))
+            ) : (
+              <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--t3)', fontSize: '12px' }}>
+                No invoices processed today.
               </div>
-              <span className="badge b-s">Done</span>
-            </div>
-            
-            <div className="flex items-center justify-between" style={{ padding: '8px 0', borderTop: '1px solid var(--b)' }}>
-              <div>
-                <div style={{ fontWeight: 500, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  TCS_Invoice_Q1.pdf
-                </div>
-                <div style={{ fontSize: '12px', color: 'var(--t2)' }}>2.8 MB · scanned</div>
-              </div>
-              <span className="badge b-w">Review</span>
-            </div>
+            )}
 
-            <div style={{ 
-              padding: '10px 12px', 
-              backgroundColor: 'var(--ag)', 
-              border: '1px solid var(--accent)', 
-              borderRadius: 'var(--rs)',
-              marginTop: '4px'
-            }}>
-              <div className="flex items-center justify-between" style={{ marginBottom: '8px' }}>
-                <div>
-                  <div style={{ fontWeight: 500, color: 'var(--t)' }}>Wipro_batch.zip</div>
-                  <div style={{ fontSize: '12px', color: 'var(--accent)' }}>Processing... 12/24</div>
+            {fileState === 'processing' && uploadedFile && (
+              <div style={{ 
+                padding: '10px 12px', 
+                backgroundColor: 'var(--ag)', 
+                border: '1px solid var(--accent)', 
+                borderRadius: 'var(--rs)',
+                marginTop: '4px'
+              }}>
+                <div className="flex items-center justify-between" style={{ marginBottom: '8px' }}>
+                  <div>
+                    <div style={{ fontWeight: 500, color: 'var(--t)' }}>{uploadedFile.name}</div>
+                    <div style={{ fontSize: '12px', color: 'var(--accent)' }}>Processing by AI Engine...</div>
+                  </div>
+                  <span className="badge b-i">Running</span>
                 </div>
-                <span className="badge b-i">Running</span>
+                <div className="progress-container">
+                  <div className="pb-bl h-full" style={{ width: '50%', animation: 'pulse 1.5s infinite' }}></div>
+                </div>
               </div>
-              <div className="progress-container">
-                <div className="pb-bl h-full" style={{ width: '50%' }}></div>
-              </div>
-            </div>
-
+            )}
+            
           </div>
         </div>
 

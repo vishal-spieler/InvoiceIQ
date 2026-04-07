@@ -1,8 +1,26 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useInvoices } from '../context/InvoiceContext';
 
 export default function AllInvoices() {
   const navigate = useNavigate();
+  const { invoices } = useInvoices();
+
+  const [statusFilter, setStatusFilter] = useState('All');
+  const [vendorFilter, setVendorFilter] = useState('All');
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const uniqueVendors = [...new Set(invoices.map(i => i.vendor).filter(Boolean))];
+
+  const filteredInvoices = invoices.filter(inv => {
+    const matchStatus = statusFilter === 'All' || inv.status === statusFilter;
+    const matchVendor = vendorFilter === 'All' || inv.vendor === vendorFilter;
+    const searchLower = searchQuery.toLowerCase();
+    const matchSearch = !searchQuery || 
+      (inv.vendor && inv.vendor.toLowerCase().includes(searchLower)) ||
+      (inv.invoiceNo && inv.invoiceNo.toLowerCase().includes(searchLower));
+    return matchStatus && matchVendor && matchSearch;
+  });
 
   const handleRowClick = () => navigate('/review');
 
@@ -12,18 +30,19 @@ export default function AllInvoices() {
       {/* Page Context Row */}
       <div className="flex items-center justify-between">
         <div style={{ color: 'var(--t2)', fontSize: '13px' }}>
-          147 invoices · 3 pending review · 2 duplicates blocked
+          {invoices.length} invoices · {invoices.filter(i => i.status === 'Pending').length} pending review
         </div>
         <div className="flex items-center gap-3">
-          <select className="select">
-            <option>All Status</option>
-            <option>Reviewed</option>
-            <option>Pending</option>
+          <select className="select" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+            <option value="All">All Status</option>
+            <option value="Exported">Exported</option>
+            <option value="Pending">Pending</option>
           </select>
-          <select className="select">
-            <option>All Vendors</option>
-            <option>TCS</option>
-            <option>Infosys</option>
+          <select className="select" value={vendorFilter} onChange={e => setVendorFilter(e.target.value)}>
+            <option value="All">All Vendors</option>
+            {uniqueVendors.map(vendor => (
+              <option key={vendor} value={vendor}>{vendor}</option>
+            ))}
           </select>
           <button className="btn bg">Export All</button>
         </div>
@@ -33,7 +52,13 @@ export default function AllInvoices() {
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
         <div className="flex items-center justify-between" style={{ padding: '16px 20px', borderBottom: '1px solid var(--b)' }}>
           <h2 style={{ fontSize: '16px' }}>Invoice Records</h2>
-          <input className="input" placeholder="Filter..." style={{ width: '170px' }} />
+          <input 
+            className="input" 
+            placeholder="Filter..." 
+            style={{ width: '170px' }} 
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+          />
         </div>
 
         <div className="overflow-y-auto w-full">
@@ -52,113 +77,45 @@ export default function AllInvoices() {
               </tr>
             </thead>
             <tbody>
-              {/* Row 1 */}
-              <tr style={{ cursor: 'pointer' }} onClick={handleRowClick}>
-                <td style={{ textAlign: 'center' }} onClick={e => e.stopPropagation()}>☐</td>
-                <td>INV-2024/03/12</td>
-                <td>Infosys Ltd</td>
-                <td>12 Mar 2024</td>
-                <td>₹12,45,000</td>
-                <td><div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', backgroundColor: 'var(--s2)', padding: '2px 8px', borderRadius: 'var(--rs)', fontSize: '12px' }}>📧 Email</div></td>
-                <td>
-                  <div className="flex items-center gap-2">
-                    <div className="progress-container" style={{ width: '60px' }}>
-                      <div className="pb-gr h-full" style={{ width: '97%' }}></div>
-                    </div>
-                    <span className="text-xs font-bold text-green">97%</span>
-                  </div>
-                </td>
-                <td><span className="badge b-s">Reviewed</span></td>
-                <td><button className="btn bg btn-xs" onClick={e => { e.stopPropagation(); handleRowClick(); }}>View</button></td>
-              </tr>
-
-              {/* Row 2 */}
-              <tr style={{ cursor: 'pointer' }} onClick={handleRowClick}>
-                <td style={{ textAlign: 'center' }} onClick={e => e.stopPropagation()}>☐</td>
-                <td>INV-2024/03/11</td>
-                <td>TCS Limited</td>
-                <td>11 Mar 2024</td>
-                <td>₹8,59,040</td>
-                <td><div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', backgroundColor: 'var(--s2)', padding: '2px 8px', borderRadius: 'var(--rs)', fontSize: '12px' }}>📤 Upload</div></td>
-                <td>
-                  <div className="flex items-center gap-2">
-                    <div className="progress-container" style={{ width: '60px' }}>
-                      <div className="pb-am h-full" style={{ width: '86%' }}></div>
-                    </div>
-                    <span className="text-xs font-bold text-amber">86%</span>
-                  </div>
-                </td>
-                <td><span className="badge b-w">Pending</span></td>
-                <td><button className="btn bg btn-xs" onClick={e => { e.stopPropagation(); handleRowClick(); }}>Review</button></td>
-              </tr>
-
-              {/* Row 3 */}
-              <tr style={{ cursor: 'pointer' }} onClick={handleRowClick}>
-                <td style={{ textAlign: 'center' }} onClick={e => e.stopPropagation()}>☐</td>
-                <td>INV-2024/03/10</td>
-                <td>Wipro Ltd</td>
-                <td>10 Mar 2024</td>
-                <td>₹3,24,500</td>
-                <td><div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', backgroundColor: 'var(--s2)', padding: '2px 8px', borderRadius: 'var(--rs)', fontSize: '12px' }}>📧 Email</div></td>
-                <td>
-                  <div className="flex items-center gap-2">
-                    <div className="progress-container" style={{ width: '60px' }}>
-                      <div className="pb-gr h-full" style={{ width: '94%' }}></div>
-                    </div>
-                    <span className="text-xs font-bold text-green">94%</span>
-                  </div>
-                </td>
-                <td><span className="badge b-s">Exported</span></td>
-                <td><button className="btn bg btn-xs" onClick={e => e.stopPropagation()}>Download</button></td>
-              </tr>
-
-              {/* Row 4 */}
-              <tr style={{ cursor: 'pointer' }} onClick={handleRowClick}>
-                <td style={{ textAlign: 'center' }} onClick={e => e.stopPropagation()}>☐</td>
-                <td>INV-2024/03/09</td>
-                <td>TCS Limited</td>
-                <td>09 Mar 2024</td>
-                <td>₹8,59,040</td>
-                <td><div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', backgroundColor: 'var(--s2)', padding: '2px 8px', borderRadius: 'var(--rs)', fontSize: '12px' }}>📤 Upload</div></td>
-                <td>
-                  <div className="flex items-center gap-2">
-                    <div className="progress-container" style={{ width: '60px' }}>
-                      <div className="pb-bl h-full" style={{ width: '100%' }}></div>
-                    </div>
-                    <span className="text-xs font-bold text-accent">100%</span>
-                  </div>
-                </td>
-                <td><span className="badge b-e">Duplicate</span></td>
-                <td><button className="btn bg btn-xs" onClick={e => e.stopPropagation()}>Details</button></td>
-              </tr>
-
-              {/* Row 5 */}
-              <tr style={{ cursor: 'pointer' }} onClick={handleRowClick}>
-                <td style={{ textAlign: 'center' }} onClick={e => e.stopPropagation()}>☐</td>
-                <td>INV-2024/03/08</td>
-                <td>Accenture</td>
-                <td>08 Mar 2024</td>
-                <td>₹21,80,000</td>
-                <td><div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', backgroundColor: 'var(--s2)', padding: '2px 8px', borderRadius: 'var(--rs)', fontSize: '12px' }}>📧 Email</div></td>
-                <td>
-                  <div className="flex items-center gap-2">
-                    <div className="progress-container" style={{ width: '60px' }}>
-                      <div className="pb-am h-full" style={{ width: '79%' }}></div>
-                    </div>
-                    <span className="text-xs font-bold text-amber">79%</span>
-                  </div>
-                </td>
-                <td><span className="badge b-w">Pending</span></td>
-                <td><button className="btn bg btn-xs" onClick={e => { e.stopPropagation(); handleRowClick(); }}>Review</button></td>
-              </tr>
-
+              {filteredInvoices.length > 0 ? (
+                filteredInvoices.map((inv) => (
+                  <tr key={inv.id} style={{ cursor: 'pointer' }} onClick={() => navigate('/review', { state: { extractedData: inv, filename: inv.filename, fileType: inv.fileType, previewUrl: inv.previewUrl } })}>
+                    <td style={{ textAlign: 'center' }} onClick={e => e.stopPropagation()}>☐</td>
+                    <td>{inv.invoiceNo || 'Unknown'}</td>
+                    <td>{inv.vendor}</td>
+                    <td>{inv.date}</td>
+                    <td>₹{inv.total}</td>
+                    <td>
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', backgroundColor: 'var(--s2)', padding: '2px 8px', borderRadius: 'var(--rs)', fontSize: '12px' }}>
+                        {inv.source === 'Upload' ? '📤 Upload' : '📧 Email'}
+                      </div>
+                    </td>
+                    <td>
+                      <div className="flex items-center gap-2">
+                        <div className="progress-container" style={{ width: '60px' }}>
+                          <div className={`h-full ${inv.confidence >= 90 ? 'pb-gr' : inv.confidence >= 70 ? 'pb-am' : 'pb-red'}`} style={{ width: `${Math.min(100, Math.max(0, inv.confidence))}%` }}></div>
+                        </div>
+                        <span className={`text-xs font-bold ${inv.confidence >= 90 ? 'text-green' : inv.confidence >= 70 ? 'text-amber' : 'text-red'}`}>{inv.confidence}%</span>
+                      </div>
+                    </td>
+                    <td><span className={`badge ${inv.status === 'Exported' ? 'b-s' : 'b-w'}`}>{inv.status || 'Pending'}</span></td>
+                    <td><button className="btn bg btn-xs" onClick={e => { e.stopPropagation(); navigate('/review', { state: { extractedData: inv, filename: inv.filename, fileType: inv.fileType, previewUrl: inv.previewUrl } }); }}>View</button></td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="9" style={{ textAlign: 'center', padding: '32px', color: 'var(--t2)' }}>
+                    No invoices processed yet. Head over to Uploads to process an invoice.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
 
         {/* Footer Pagination */}
         <div className="flex items-center justify-between" style={{ padding: '16px 20px', borderTop: '1px solid var(--b)', fontSize: '13px', color: 'var(--t2)' }}>
-          <div>Showing 5 of 147</div>
+          <div>Showing {filteredInvoices.length} of {invoices.length}</div>
           <div className="flex items-center gap-1">
             <button className="btn bg btn-sm" style={{ padding: '4px 8px' }}>← Prev</button>
             <button className="btn" style={{ padding: '4px 10px', backgroundColor: 'var(--accent)', color: '#fff' }}>1</button>

@@ -5,12 +5,16 @@ import App from './App.jsx'
 import './index.css'
 import { ToastProvider } from './components/Toast.jsx'
 
+import { InvoiceProvider } from './context/InvoiceContext.jsx'
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <BrowserRouter>
-      <ToastProvider>
-        <App />
-      </ToastProvider>
+      <InvoiceProvider>
+        <ToastProvider>
+          <App />
+        </ToastProvider>
+      </InvoiceProvider>
     </BrowserRouter>
   </React.StrictMode>,
 )

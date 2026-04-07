@@ -1,6 +1,7 @@
 import Tesseract from 'tesseract.js';
 import Jimp from 'jimp';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import crypto from 'crypto';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -31,7 +32,13 @@ async function preprocessImage(buffer) {
  */
 async function extractWithGemini(buffer, mimeType) {
   if (!genAI) throw new Error('GEMINI_API_KEY missing');
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+  const model = genAI.getGenerativeModel({ 
+    model: 'gemini-2.5-flash-lite',
+    generationConfig: {
+      temperature: 0.0,
+      responseMimeType: "application/json",
+    }
+  });
 
   const prompt = `
 You are an expert at reading Indian GST Tax Invoices. Analyze this invoice image carefully and return ONLY a valid JSON object with these exact keys:
@@ -57,9 +64,10 @@ STRICT LINE ITEM EXTRACTION RULES:
   → "hsn" = the HSN/SAC code column (6-8 digit number)
   → "qty" = the Quantity column
   → "rate" = the Price/Unit column (NOT the discounted price)
+  → "discount" = the Discount amount or percentage (if any). Use null if no discount.
   → "total" = the LAST column (Amount/Total) — the final line value after all discounts and taxes
 - If a Discount column exists, still use the final Amount column as "total"
-- lineItems MUST be an array of objects each with exactly: { "description", "hsn", "qty", "rate", "total" }
+- lineItems MUST be an array of objects each with exactly: { "description", "hsn", "qty", "rate", "discount", "total" }
 - Use null for any sub-field you cannot read
 - Never include rows like "Total", "Sub Total", "CGST", "SGST", "Tax" in lineItems
 
@@ -222,13 +230,18 @@ function normalizeLineItems(rawItems) {
         'Rate', 'Price', 'unit_rate', 'basic_rate', 'price/unit'
       );
 
+      const discount = pick(
+        'discount', 'disc', 'Discount', 'disc_amt', 'discount_amount',
+        'disc_percentage', 'discount_percentage', 'disc%'
+      ) || null;
+
       const total = pick(
         'total', 'amount', 'lineTotal', 'line_total', 'value',
         'net', 'amt', 'Amount', 'Total', 'line_amount',
         'taxable_amount', 'taxableAmount', 'net_amount', 'netAmount'
       );
 
-      const mapped = { description, hsn, qty, rate, total };
+      const mapped = { description, hsn, qty, rate, discount, total };
       console.log(`[AI] lineItem[${idx}] mapped:`, JSON.stringify(mapped));
       return mapped;
     })
@@ -251,10 +264,12 @@ function parseLineItems(text) {
 
   // Matches: [description text] [2 to 10 numeric values at the end]
   // Allow (, ), % and - to support lines like "743.68 (6%)". Switched to \s+ for flexible column spacing
-  const columnRegex = /^(.{3,60}?)\s+((?:[\d,.\-%()]+(?:\s+|$)){2,10})$/;
+  // Removed strict end of string anchor $ to prevent trailing OCR border artifacts (like |) from breaking the match.
+  // Note: NOT including | in the digit class so that random | characters aren't parsed as numbers.
+  const columnRegex = /^(.{3,60}?)\s+((?:[\d,.\-%()]+(?:\s+|$)){2,10})(?:.*)$/;
 
-  // Header/footer keywords to SKIP
-  const skipPattern = /^(s\s*no|sl\.?\s*no|sr\.?\s*no|description|particulars|hsn\/sac|hsn|sac|qty|rate|amount|total\s*amount|sub\s*total|subtotal|grand\s*total|balance|taxable|cgst|sgst|igst|gst|tax|discount|invoice\s*(no|date|num)|date|terms|page|bank|ifsc|pan|gstin|thank|certified|e\s*&\s*oe|\*|#)$/i;
+  // Header/footer keywords to SKIP. Added common signature and footer strings.
+  const skipPattern = /^(s\s*no|sl\.?\s*no|sr\.?\s*no|description|particulars|hsn\/sac|hsn|sac|qty|rate|amount|total\s*amount|sub\s*total|subtotal|grand\s*total|balance|taxable|cgst|sgst|igst|gst|tax|discount|invoice\s*(no|date|num)|date|terms|page|bank|ifsc|pan|gstin|thank|certified|e\s*&\s*oe|e\.?o\.?|auth.*|for\s+.*|.*jurisdiction|\*|#)$/i;
 
   console.log(`[OCR DIAGNOSTIC] Scanning ${lines.length} lines for product rows...`);
 
@@ -273,6 +288,13 @@ function parseLineItems(text) {
       console.log(`    [SKIPPED] Matches Header/Footer 'skipPattern':`, description);
       continue;
     }
+    
+    // Filter out common QR code text hallucinations and garbage (e.g. "eo |")
+    if (description.length < 5 && /[^a-zA-Z0-9\s]/.test(description)) {
+      console.log(`    [SKIPPED] Likely garbage/QR code noise:`, description);
+      continue;
+    }
+
     if (/^(total|sub.?total|grand|sgst|cgst|igst|discount|balance\s*due)/i.test(description)) {
       console.log(`    [SKIPPED] Matches total/summary word:`, description);
       continue;
@@ -310,7 +332,7 @@ function parseLineItems(text) {
     // Strip parentheses if the total was captured with them
     const cleanTotal = total.replace(/[()]/g, '');
 
-    const resolvedItem = { description, hsn, qty, rate, total: cleanTotal };
+    const resolvedItem = { description, hsn, qty, rate, discount: null, total: cleanTotal };
     items.push(resolvedItem);
     console.log(`    [SUCCESS] Mapped item:`, JSON.stringify(resolvedItem));
   }
@@ -447,18 +469,31 @@ function parseInvoiceData(text) {
   return data;
 }
 
+const extractionCache = new Map();
+
 export async function performExtraction(buffer, originalName, mimeType) {
   if (process.env.GEMINI_API_KEY) {
+    const hash = crypto.createHash('md5').update(buffer).digest('hex');
+    if (extractionCache.has(hash)) {
+      console.log(`[CACHE HIT] Returning cached AI extraction for: ${originalName}`);
+      return {
+        ...extractionCache.get(hash),
+        rawText: '(Extracted via Gemini AI - Cached)',
+        fileName: originalName
+      };
+    }
+
     try {
       console.log(`AI-Extraction (Gemini) starting for: ${originalName}...`);
       const aiData = await extractWithGemini(buffer, mimeType);
+      extractionCache.set(hash, aiData);
       return {
         ...aiData,
         rawText: '(Extracted via Gemini AI)',
         fileName: originalName
       };
     } catch (err) {
-      console.error('[CRITICAL] AI Extraction failed, falling back to local OCR.');
+      console.error('[CRITICAL] AI Extraction failed, falling back to local OCR.', err.message);
     }
   }
 

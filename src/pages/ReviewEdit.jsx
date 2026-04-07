@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useToast } from '../components/Toast';
+import { useInvoices } from '../context/InvoiceContext';
 
 export default function ReviewEdit() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { toast } = useToast();
+  const { addInvoice } = useInvoices();
   const [showDebug, setShowDebug] = useState(false);
   
   const { filename = 'INV-20240311', previewUrl, fileType, extractedData } = location.state || {};
@@ -46,7 +49,16 @@ export default function ReviewEdit() {
   }
 
   const handleApprove = () => {
-    toast('✅ Approved and exported to Excel', 'green');
+    addInvoice({
+      ...data,
+      filename,
+      fileType,
+      previewUrl,
+      source: 'Upload',
+      status: 'Exported'
+    });
+    toast('✅ Approved and exported', 'green');
+    navigate('/invoices');
   };
 
   return (
@@ -83,7 +95,7 @@ export default function ReviewEdit() {
           <div className="flex items-center justify-between" style={{ padding: '12px 16px', borderBottom: '1px solid var(--b)', backgroundColor: 'var(--surface)' }}>
             <div className="flex items-center gap-2">
               <button className="btn bg btn-xs">◀</button>
-              <span className="mono text-xs">Page 1/2</span>
+              <span className="mono text-xs">Page 1/1</span>
               <button className="btn bg btn-xs">▶</button>
             </div>
             <button className="btn bg btn-xs">Zoom</button>
@@ -99,96 +111,24 @@ export default function ReviewEdit() {
                 )}
               </div>
             ) : (
-              /* Fallback to original TCS Mockup */
               <div style={{ 
                 backgroundColor: '#fff', 
-                color: '#000', 
                 padding: '40px', 
-                borderRadius: '2px', 
+                borderRadius: '4px', 
                 boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                minHeight: '700px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
                 width: '100%',
                 maxWidth: '600px',
-                fontFamily: 'Helvetica, Arial, sans-serif'
+                textAlign: 'center'
               }}>
-                <h1 style={{ fontSize: '24px', color: '#111', borderBottom: '2px solid #333', paddingBottom: '16px', marginBottom: '24px', fontFamily: 'Helvetica' }}>
-                  TATA CONSULTANCY SERVICES LTD
-                </h1>
-                
-                <div className="flex justify-between" style={{ marginBottom: '40px', fontSize: '13px', lineHeight: 1.6 }}>
-                  <div>
-                    <div style={{ color: '#555' }}>9th Floor, Nirmal Building, Nariman Point</div>
-                    <div style={{ color: '#555' }}>Mumbai 400 021</div>
-                    <div style={{ color: '#555', marginTop: '4px' }}>GSTIN: 27AAACT3518Q1ZZ</div>
-                  </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontWeight: 'bold' }}>Bill To:</div>
-                    <div style={{ color: '#555' }}>Acme Corp Pvt Ltd</div>
-                    <div style={{ color: '#555' }}>GSTIN: 29AABCA1234B1Z5</div>
-                  </div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '32px' }}>
-                  <div className="flex col gap-1 text-sm">
-                    <div className="font-bold text-lg" style={{ marginBottom: '8px' }}>TAX INVOICE</div>
-                    <div className="flex gap-2">
-                      <span style={{ width: '80px', color: '#666' }}>Invoice No:</span>
-                      <strong style={{ backgroundColor: '#fff3cd', padding: '0 4px' }}>INV-2024/03/11</strong>
-                    </div>
-                    <div className="flex gap-2">
-                      <span style={{ width: '80px', color: '#666' }}>Date:</span>
-                      <strong style={{ backgroundColor: '#fff3cd', padding: '0 4px' }}>11-Mar-2024</strong>
-                    </div>
-                    <div className="flex gap-2">
-                      <span style={{ width: '80px', color: '#666' }}>Due:</span>
-                      <span>25-Mar-2024</span>
-                    </div>
-                  </div>
-                </div>
-
-                <table style={{ width: '100%', marginBottom: '32px', borderCollapse: 'collapse', fontSize: '13px' }}>
-                  <thead>
-                    <tr style={{ borderBottom: '1px solid #ddd' }}>
-                      <th style={{ textAlign: 'left', padding: '12px 0' }}>Description</th>
-                      <th style={{ textAlign: 'right', padding: '12px 0' }}>Qty</th>
-                      <th style={{ textAlign: 'right', padding: '12px 0' }}>Rate</th>
-                      <th style={{ textAlign: 'right', padding: '12px 0' }}>Amount</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr style={{ borderBottom: '1px solid #eee' }}>
-                      <td style={{ padding: '12px 0' }}>IT Consulting Services - Q1 2024</td>
-                      <td style={{ textAlign: 'right', padding: '12px 0' }}>160</td>
-                      <td style={{ textAlign: 'right', padding: '12px 0' }}>₹3,500</td>
-                      <td style={{ textAlign: 'right', padding: '12px 0' }}>₹5,60,000</td>
-                    </tr>
-                    <tr style={{ borderBottom: '1px solid #eee' }}>
-                      <td style={{ padding: '12px 0' }}>Project Management Support</td>
-                      <td style={{ textAlign: 'right', padding: '12px 0' }}>40</td>
-                      <td style={{ textAlign: 'right', padding: '12px 0' }}>₹4,200</td>
-                      <td style={{ textAlign: 'right', padding: '12px 0' }}>₹1,68,000</td>
-                    </tr>
-                  </tbody>
-                </table>
-
-                <div className="flex col gap-2" style={{ alignItems: 'flex-end', fontSize: '13px' }}>
-                  <div className="flex justify-between" style={{ width: '250px' }}>
-                    <span style={{ color: '#666' }}>Subtotal</span>
-                    <span>₹7,28,000</span>
-                  </div>
-                  <div className="flex justify-between" style={{ width: '250px' }}>
-                    <span style={{ color: '#666' }}>IGST @18%</span>
-                    <span>₹1,31,040</span>
-                  </div>
-                  <div className="flex justify-between" style={{ width: '250px', borderTop: '2px solid #333', paddingTop: '8px', marginTop: '4px', fontSize: '16px', fontWeight: 'bold' }}>
-                    <span>TOTAL DUE</span>
-                    <span style={{ backgroundColor: '#fff3cd', padding: '0 4px' }}>₹8,59,040</span>
-                  </div>
-                </div>
-
-                <div style={{ marginTop: '60px', borderTop: '1px solid #ddd', paddingTop: '16px', fontSize: '11px', color: '#666' }}>
-                  Bank: HDFC Bank · A/C: 00601340009876 · IFSC: HDFC0000060
-                </div>
+                <div style={{ fontSize: '48px', marginBottom: '16px' }}>📄</div>
+                <h2 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '8px' }}>File Preview Unavailable</h2>
+                <p style={{ color: 'var(--t2)', fontSize: '14px', maxWidth: '300px' }}>
+                  The source file for "{filename}" is not available in the current browsing session. You must re-upload an invoice to fetch its local preview.
+                </p>
               </div>
             )}
           </div>
@@ -248,13 +188,15 @@ export default function ReviewEdit() {
                 <input className="input" defaultValue={data.gstin} />
               </div>
 
-              <div className="form-group">
-                <div className="flex items-center justify-between">
-                  <label className="form-label">PO Number</label>
-                  <span className="text-xs text-amber font-bold">78%</span>
+              {data.poNumber && (
+                <div className="form-group">
+                  <div className="flex items-center justify-between">
+                    <label className="form-label">PO Number</label>
+                    <span className="text-xs text-amber font-bold">78%</span>
+                  </div>
+                  <input className="input" defaultValue={data.poNumber} style={{ borderColor: 'var(--amber)' }} />
                 </div>
-                <input className="input" defaultValue="PO-2024-0891" style={{ borderColor: 'var(--amber)' }} />
-              </div>
+              )}
 
               <div className="form-group">
                 <div className="flex items-center justify-between">
@@ -326,11 +268,12 @@ export default function ReviewEdit() {
                 <table style={{ minWidth: '100%', tableLayout: 'fixed' }}>
                   <thead>
                     <tr>
-                      <th style={{ width: '35%' }}>Description</th>
-                      <th style={{ width: '15%' }}>HSN</th>
-                      <th style={{ width: '15%' }}>Qty</th>
-                      <th style={{ width: '17%' }}>Rate</th>
-                      <th style={{ width: '18%' }}>Total</th>
+                      <th style={{ width: '32%' }}>Description</th>
+                      <th style={{ width: '12%' }}>HSN</th>
+                      <th style={{ width: '10%' }}>Qty</th>
+                      <th style={{ width: '16%' }}>Rate</th>
+                      <th style={{ width: '14%' }}>Discount</th>
+                      <th style={{ width: '16%' }}>Total</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -343,6 +286,7 @@ export default function ReviewEdit() {
                           <td style={{ fontSize: '12px', color: 'var(--t3)' }}>{item.hsn || '—'}</td>
                           <td style={{ fontSize: '12px' }}>{item.qty}</td>
                           <td style={{ fontSize: '12px' }}>{item.rate}</td>
+                          <td style={{ fontSize: '12px', color: item.discount ? 'var(--green)' : 'inherit' }}>{item.discount || '-'}</td>
                           <td style={{ fontSize: '12px' }}>{item.total}</td>
                         </tr>
                       ))
