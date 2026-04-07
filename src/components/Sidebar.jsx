@@ -72,7 +72,11 @@ const NavItem = ({ to, icon, label, badge, badgeColor = 'b-n' }) => {
   );
 };
 
+import { useInvoices } from '../context/InvoiceContext';
+
 export default function Sidebar() {
+  const { invoices } = useInvoices();
+
   return (
     <div style={{
       width: '220px',
@@ -108,7 +112,7 @@ export default function Sidebar() {
         <NavSection title="Core">
           <NavItem to="/upload" icon={<Upload size={16} />} label="Upload Invoices" />
           <NavItem to="/review" icon={<Search size={16} />} label="Review & Edit" badge="3" badgeColor="b-w" />
-          <NavItem to="/invoices" icon={<FileText size={16} />} label="All Invoices" badge="147" badgeColor="b-i" />
+          <NavItem to="/invoices" icon={<FileText size={16} />} label="All Invoices" badge={invoices.length} badgeColor="b-i" />
           <NavItem to="/batch" icon={<Layers size={16} />} label="Batch Jobs" />
           <NavItem to="/export" icon={<Download size={16} />} label="Export Data" />
         </NavSection>

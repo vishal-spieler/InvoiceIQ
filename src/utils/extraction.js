@@ -122,7 +122,8 @@ function parseLineItems(text) {
   
   // Greedy regex to find 2-6 trailing numeric values (allows for Qty, Price, Discount, GST, Total)
   // Logic: [Description] [Val1] [Val2] [Val3]...
-  const columnRegex = /^(.+?)\s+((?:[\d,.]+\s*){2,6})$/;
+  // Relaxed strict anchor $ to (?:.*)$ to avoid trailing OCR border noise dropping the entire row
+  const columnRegex = /^(.+?)\s+((?:[\d,.]+\s*){2,6})(?:.*)$/;
 
   for (const line of lines) {
     const trimmed = line.trim();
