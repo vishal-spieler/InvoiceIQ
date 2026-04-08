@@ -38,19 +38,35 @@ export default function ExportData() {
       return;
     }
 
-    const headers = ['Invoice No', 'Vendor', 'Date', 'Confidence', 'Subtotal', 'SGST', 'CGST', 'IGST', 'Total', 'Source', 'Status'];
+    const headers = [
+      'Invoice No', 'Vendor Name', 'Vendor GSTIN', 'Invoice Date', 'Due Date', 'PO Number',
+      'Currency', 'Subtotal (₹)', 'CGST Rate (%)', 'CGST Amount (₹)', 'SGST Rate (%)', 'SGST Amount (₹)',
+      'IGST Rate (%)', 'IGST Amount (₹)', 'Total GST (₹)', 'Total Amount (₹)', 'Bank Account', 'IFSC Code', 'Extracted At'
+    ];
+    
+    // Fallback if gst isn't present on old invoices
+    const safeGst = (inv) => inv.gst || { cgst_rate: 0, cgst_amount: 0, sgst_rate: 0, sgst_amount: 0, igst_rate: 0, igst_amount: 0, total_gst: 0 };
+
     const rows = filteredInvoices.map(inv => [
       inv.invoiceNo || 'N/A',
       inv.vendor || 'N/A',
+      inv.gstin || 'N/A',
       inv.date || 'N/A',
-      inv.confidence ? `${inv.confidence}%` : 'N/A',
-      inv.subtotal || '0',
-      inv.sgst || '0',
-      inv.cgst || '0',
-      inv.igst || '0',
-      inv.total || '0',
-      inv.source || 'N/A',
-      inv.status || 'N/A'
+      inv.dueDate || 'N/A',
+      inv.poNumber || 'N/A',
+      inv.currency || 'INR',
+      inv.subtotal || '0.00',
+      `${safeGst(inv).cgst_rate}%`,
+      safeGst(inv).cgst_amount,
+      `${safeGst(inv).sgst_rate}%`,
+      safeGst(inv).sgst_amount,
+      `${safeGst(inv).igst_rate}%`,
+      safeGst(inv).igst_amount,
+      safeGst(inv).total_gst,
+      inv.total || '0.00',
+      inv.bankAccount || 'N/A',
+      inv.ifsc || 'N/A',
+      inv.createdAt ? new Date(inv.createdAt).toLocaleString() : 'N/A'
     ]);
 
     const escapeCSV = (field) => {
@@ -146,6 +162,10 @@ export default function ExportData() {
                   <label className="flex items-center gap-2" style={{ cursor: 'pointer' }}>
                     <input type="checkbox" defaultChecked style={{ accentColor: 'var(--green)', width: '16px', height: '16px' }} />
                     <span style={{ fontSize: '13px' }}>Line Items <span style={{ color: 'var(--t3)' }}>(detailed rows)</span></span>
+                  </label>
+                  <label className="flex items-center gap-2" style={{ cursor: 'pointer' }}>
+                    <input type="checkbox" defaultChecked style={{ accentColor: 'var(--green)', width: '16px', height: '16px' }} />
+                    <span style={{ fontSize: '13px' }}>GST Breakdown</span>
                   </label>
                   <label className="flex items-center gap-2" style={{ cursor: 'pointer' }}>
                     <input type="checkbox" style={{ width: '16px', height: '16px' }} />

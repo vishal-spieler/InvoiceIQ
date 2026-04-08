@@ -43,12 +43,12 @@ async function extractWithGemini(buffer, mimeType) {
   const prompt = `
 You are an expert at reading Indian GST Tax Invoices. Analyze this invoice image carefully and return ONLY a valid JSON object with these exact keys:
 
-invoiceNo, date, vendor, subtotal, sgst, cgst, igst, totalTax, total, gstin, confidence, lineItems
+invoiceNo, date, vendor, subtotal, sgst, cgst, igst, cgst_rate, sgst_rate, igst_rate, totalTax, total, gstin, confidence, lineItems
 
 STRICT GST EXTRACTION RULES:
-- Look for labels like "SGST", "S.G.S.T", "State Tax", "SGST @9%" etc. → capture the AMOUNT next to it as "sgst"
-- Look for labels like "CGST", "C.G.S.T", "Central Tax", "CGST @9%" etc. → capture the AMOUNT next to it as "cgst"
-- Look for labels like "IGST", "I.G.S.T", "Integrated Tax", "IGST @18%" etc. → capture the AMOUNT next to it as "igst"
+- Look for labels like "SGST", "S.G.S.T", "State Tax", "SGST @9%" etc. → capture the AMOUNT next to it as "sgst" and extract the percentage number as "sgst_rate"
+- Look for labels like "CGST", "C.G.S.T", "Central Tax", "CGST @9%" etc. → capture the AMOUNT next to it as "cgst" and extract the percentage number as "cgst_rate"
+- Look for labels like "IGST", "I.G.S.T", "Integrated Tax", "IGST @18%" etc. → capture the AMOUNT next to it as "igst" and extract the percentage number as "igst_rate"
 - If SGST and CGST both appear, they should be EQUAL (each = half the total GST). Verify this.
 - "totalTax" = sgst + cgst + igst (sum of all tax components found)
 - "subtotal" = taxable value BEFORE any taxes
@@ -70,6 +70,9 @@ STRICT LINE ITEM EXTRACTION RULES:
 - lineItems MUST be an array of objects each with exactly: { "description", "hsn", "qty", "rate", "discount", "total" }
 - Use null for any sub-field you cannot read
 - Never include rows like "Total", "Sub Total", "CGST", "SGST", "Tax" in lineItems
+
+LANGUAGE TRANSLATION RULE:
+- IMPORTANT: If any text in the invoice (such as item descriptions, vendor names, or labels) is written in a language other than English (e.g., Hindi, Tamil, German, etc.), you MUST meticulously translate it into English before mapping it. All text values in the returned JSON (especially 'vendor' and 'description') MUST be in English.
 
 - All monetary values must be plain numbers (e.g. 1234.56, not "₹1,234.56")
 
@@ -122,6 +125,9 @@ function normalizeAIResponse(raw) {
     sgst:       toStr(raw.sgst),
     cgst:       toStr(raw.cgst),
     igst:       toStr(raw.igst),
+    sgst_rate:  toStr(raw.sgst_rate || raw.sgstRate || raw.sgst_percent),
+    cgst_rate:  toStr(raw.cgst_rate || raw.cgstRate || raw.cgst_percent),
+    igst_rate:  toStr(raw.igst_rate || raw.igstRate || raw.igst_percent),
     totalTax:   toStr(raw.totalTax),
     total:      toStr(raw.total),
     confidence: raw.confidence || 80,

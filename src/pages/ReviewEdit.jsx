@@ -10,55 +10,89 @@ export default function ReviewEdit() {
   const { addInvoice } = useInvoices();
   const [showDebug, setShowDebug] = useState(false);
   
-  const { filename = 'INV-20240311', previewUrl, fileType, extractedData } = location.state || {};
-  
-  console.log('[REVIEW] Received State:', { filename, hasData: !!extractedData });
+  const { isBatch, batchId, batchResults, vendor: initialVendor } = location.state || {};
+  const [currentIndex, setCurrentIndex] = useState(0);
 
-  const data = extractedData || {
-    invoiceNo: '', // Start with empty if no data provided
-    date: '',
-    vendor: 'Unknown / Not Found',
-    sgst: '0.00',
-    cgst: '0.00',
-    igst: '0.00',
-    totalTax: '0.00',
-    total: '0.00',
-    confidence: 0,
-    lineItems: []
+  const currentItem = isBatch && batchResults ? batchResults[currentIndex] : location.state;
+  const { filename = 'INV-20240311', previewUrl, fileType, extractedData, vendor } = currentItem || {};
+  
+  const currentVendor = isBatch ? initialVendor : vendor;
+  
+  console.log('[REVIEW] Active Item:', { filename, hasData: !!extractedData, isBatch, currentIndex });
+
+  const generateData = () => {
+    const defaultData = extractedData ? {
+      ...extractedData,
+      vendor: currentVendor || extractedData.vendor || 'Unknown / Not Found',
+      lineItems: extractedData.lineItems || [],
+      gst: extractedData.gst || {
+        cgst_rate: parseFloat(extractedData.cgst_rate) || 0, cgst_amount: parseFloat(extractedData.cgst) || 0,
+        sgst_rate: parseFloat(extractedData.sgst_rate) || 0, sgst_amount: parseFloat(extractedData.sgst) || 0,
+        igst_rate: parseFloat(extractedData.igst_rate) || 0, igst_amount: parseFloat(extractedData.igst) || 0,
+        total_gst: parseFloat(extractedData.totalTax) || 0
+      }
+    } : {
+      invoiceNo: '', date: '', vendor: 'Unknown / Not Found', subtotal: '0.00',
+      sgst: '0.00', cgst: '0.00', igst: '0.00', totalTax: '0.00', total: '0.00', confidence: 0,
+      gst: { cgst_rate: 0, cgst_amount: 0, sgst_rate: 0, sgst_amount: 0, igst_rate: 0, igst_amount: 0, total_gst: 0 },
+      lineItems: []
+    };
+
+    if (!extractedData && filename === 'INV-20240311') {
+      Object.assign(defaultData, {
+        invoiceNo: 'INV-2024/03/11', date: '2024-03-11', vendor: 'Tata Consultancy Services Ltd', gstin: '27AAACT3518Q1ZZ',
+        subtotal: '728000.00', sgst: '0.00', cgst: '0.00', igst: '131040.00', totalTax: '131040.00', total: '859040.00', confidence: 86,
+        gst: { cgst_rate: 0, cgst_amount: 0, sgst_rate: 0, sgst_amount: 0, igst_rate: 18, igst_amount: 131040, total_gst: 131040 },
+        lineItems: [
+          { description: 'IT Consulting', qty: '160', rate: '3,500', total: '5,60,000' },
+          { description: 'Project Mgmt', qty: '40', rate: '4,200', total: '1,68,000' }
+        ]
+      });
+    }
+    return defaultData;
   };
 
-  // Default fallback if we are just viewing the page without an upload (for demo/dev)
-  if (!extractedData && filename === 'INV-20240311') {
-    Object.assign(data, {
-      invoiceNo: 'INV-2024/03/11',
-      date: '2024-03-11',
-      vendor: 'Tata Consultancy Services Ltd',
-      gstin: '27AAACT3518Q1ZZ',
-      subtotal: '728000.00',
-      sgst: '0.00',
-      cgst: '0.00',
-      igst: '131040.00',
-      totalTax: '131040.00',
-      total: '859040.00',
-      confidence: 86,
-      lineItems: [
-        { description: 'IT Consulting', qty: '160', rate: '3,500', total: '5,60,000' },
-        { description: 'Project Mgmt', qty: '40', rate: '4,200', total: '1,68,000' }
-      ]
+  const [formData, setFormData] = useState(generateData());
+  const data = formData; // Use formData as the source of truth for rendering right side fields natively
+
+  React.useEffect(() => {
+    setFormData(generateData());
+  }, [currentIndex, extractedData, currentVendor]);
+
+  const handleGSTChange = (field, value) => {
+    const num = parseFloat(value) || 0;
+    setFormData(prev => {
+      const newGst = { ...prev.gst, [field]: num };
+      newGst.total_gst = (newGst.cgst_amount || 0) + (newGst.sgst_amount || 0) + (newGst.igst_amount || 0);
+      return { ...prev, gst: newGst };
     });
-  }
+  };
+
+  const hasGstConflict = formData.gst.igst_amount > 0 && (formData.gst.cgst_amount > 0 || formData.gst.sgst_amount > 0);
 
   const handleApprove = () => {
     addInvoice({
-      ...data,
+      ...formData,
       filename,
-      fileType,
+      fileType: fileType || 'application/pdf',
       previewUrl,
-      source: 'Upload',
-      status: 'Exported'
+      source: isBatch ? 'Batch Job' : 'Upload',
+      status: 'Exported',
+      batchId: isBatch ? batchId : undefined
     });
-    toast('✅ Approved and exported', 'green');
-    navigate('/invoices');
+    
+    if (isBatch) {
+      if (currentIndex < batchResults.length - 1) {
+        toast(`✅ Saved! Loading next invoice... (${currentIndex + 1}/${batchResults.length})`, 'green');
+        setCurrentIndex(currentIndex + 1);
+      } else {
+        toast(`✅ Batch Review Complete!`, 'green');
+        navigate('/batch');
+      }
+    } else {
+      toast('✅ Approved and exported', 'green');
+      navigate('/invoices');
+    }
   };
 
   return (
@@ -72,9 +106,22 @@ export default function ReviewEdit() {
           </div>
         </div>
         <div className="flex items-center gap-3">
+          {isBatch && (
+            <div className="text-xs font-mono mr-2" style={{ color: 'var(--accent)' }}>
+              REVIEW: {currentIndex + 1} / {batchResults.length}
+            </div>
+          )}
           <div className="flex items-center gap-1">
-            <button className="btn bg btn-sm">← Prev</button>
-            <button className="btn bg btn-sm">Next →</button>
+            <button 
+              className="btn bg btn-sm" 
+              disabled={isBatch && currentIndex === 0} 
+              onClick={() => setCurrentIndex(Math.max(0, currentIndex - 1))}
+            >← Prev</button>
+            <button 
+              className="btn bg btn-sm" 
+              disabled={isBatch && currentIndex === batchResults.length - 1} 
+              onClick={() => setCurrentIndex(Math.min(batchResults.length - 1, currentIndex + 1))}
+            >Next →</button>
           </div>
           <button className="btn bd btn-sm">Reject</button>
           <button className="btn bs2 btn-sm" onClick={handleApprove}>Approve & Export</button>
@@ -163,38 +210,38 @@ export default function ReviewEdit() {
                   <label className="form-label">Invoice Number</label>
                   <span className={`text-xs ${data.invoiceNo ? 'text-green' : 'text-red'} font-bold`}>{data.invoiceNo ? 'FOUND' : 'MISSING'}</span>
                 </div>
-                <input className="input" defaultValue={data.invoiceNo} />
+                <input className="input" value={formData.invoiceNo} onChange={(e) => setFormData({...formData, invoiceNo: e.target.value})} />
               </div>
 
               <div className="form-group">
                 <div className="flex items-center justify-between">
                   <label className="form-label">Invoice Date</label>
-                  <span className={`text-xs ${data.date ? 'text-green' : 'text-amber'} font-bold`}>{data.date ? 'FOUND' : 'MISSING'}</span>
+                  <span className={`text-xs ${formData.date ? 'text-green' : 'text-amber'} font-bold`}>{formData.date ? 'FOUND' : 'MISSING'}</span>
                 </div>
-                <input className="input" defaultValue={data.date} style={{ borderColor: data.date ? 'var(--b2)' : 'var(--amber)' }} />
+                <input className="input" value={formData.date} onChange={(e) => setFormData({...formData, date: e.target.value})} style={{ borderColor: formData.date ? 'var(--b2)' : 'var(--amber)' }} />
               </div>
 
               <div className="form-group">
                 <div className="flex items-center justify-between">
                   <label className="form-label">Vendor Name</label>
                 </div>
-                <input className="input" defaultValue={data.vendor} />
+                <input className="input" value={formData.vendor} onChange={(e) => setFormData({...formData, vendor: e.target.value})} />
               </div>
 
               <div className="form-group">
                 <div className="flex items-center justify-between">
                   <label className="form-label">Vendor GST</label>
                 </div>
-                <input className="input" defaultValue={data.gstin} />
+                <input className="input" value={formData.gstin} onChange={(e) => setFormData({...formData, gstin: e.target.value})} />
               </div>
 
-              {data.poNumber && (
+              {formData.poNumber && (
                 <div className="form-group">
                   <div className="flex items-center justify-between">
                     <label className="form-label">PO Number</label>
                     <span className="text-xs text-amber font-bold">78%</span>
                   </div>
-                  <input className="input" defaultValue={data.poNumber} style={{ borderColor: 'var(--amber)' }} />
+                  <input className="input" value={formData.poNumber} onChange={(e) => setFormData({...formData, poNumber: e.target.value})} style={{ borderColor: 'var(--amber)' }} />
                 </div>
               )}
 
@@ -208,60 +255,93 @@ export default function ReviewEdit() {
               <div className="form-group">
                 <div className="flex items-center justify-between">
                   <label className="form-label">Subtotal</label>
-                  <span className={`text-xs ${data.subtotal ? 'text-green' : 'text-t3'} font-bold`}>{data.subtotal ? 'FOUND' : 'AUTO-CALC'}</span>
+                  <span className={`text-xs ${formData.subtotal ? 'text-green' : 'text-t3'} font-bold`}>{formData.subtotal ? 'FOUND' : 'AUTO-CALC'}</span>
                 </div>
-                <input className="input" defaultValue={data.subtotal} />
-              </div>
-
-              <div className="form-group">
-                <div className="flex items-center justify-between">
-                  <label className="form-label">SGST</label>
-                  <span className={`text-xs ${data.sgst ? 'text-green' : 'text-t3'} font-bold`}>
-                    {data.sgst ? (data.totalTax && parseFloat(data.sgst) === parseFloat(data.totalTax) / 2 ? 'INFERRED' : 'FOUND') : 'MISSING'}
-                  </span>
-                </div>
-                <input className="input" defaultValue={data.sgst} />
-              </div>
-
-              <div className="form-group">
-                <div className="flex items-center justify-between">
-                  <label className="form-label">CGST</label>
-                  <span className={`text-xs ${data.cgst ? 'text-green' : 'text-t3'} font-bold`}>
-                    {data.cgst ? (data.totalTax && parseFloat(data.cgst) === parseFloat(data.totalTax) / 2 ? 'INFERRED' : 'FOUND') : 'MISSING'}
-                  </span>
-                </div>
-                <input className="input" defaultValue={data.cgst} />
-              </div>
-
-              <div className="form-group">
-                <div className="flex items-center justify-between">
-                  <label className="form-label">IGST</label>
-                  <span className={`text-xs ${data.igst ? 'text-green' : 'text-t3'} font-bold`}>{data.igst ? 'FOUND' : 'MISSING'}</span>
-                </div>
-                <input className="input" defaultValue={data.igst} />
-              </div>
-
-              <div className="form-group">
-                <div className="flex items-center justify-between">
-                  <label className="form-label">Total Tax</label>
-                  <span className={`text-xs ${data.totalTax ? 'text-green' : 'text-t3'} font-bold`}>{data.totalTax ? 'FOUND' : 'AUTO-CALC'}</span>
-                </div>
-                <input className="input" defaultValue={data.totalTax} />
+                <input className="input" value={formData.subtotal} onChange={e => setFormData({...formData, subtotal: e.target.value})} />
               </div>
 
               <div className="form-group">
                 <div className="flex items-center justify-between">
                   <label className="form-label border-red">Total Amount</label>
-                  <span className={`text-xs ${data.total ? 'text-green' : 'text-red'} font-bold`}>{data.total ? 'FOUND' : 'LOW CONFIDENCE'}</span>
+                  <span className={`text-xs ${formData.total ? 'text-green' : 'text-red'} font-bold`}>{formData.total ? 'FOUND' : 'LOW CONFIDENCE'}</span>
                 </div>
-                <input className="input" defaultValue={data.total} style={{ borderColor: data.total ? 'var(--b2)' : 'var(--red)' }} />
-                {!data.total && <div className="text-xs text-red mt-1">⚠ OCR could not confidently identify total due</div>}
+                <input className="input" value={formData.total} onChange={e => setFormData({...formData, total: e.target.value})} style={{ borderColor: formData.total ? 'var(--b2)' : 'var(--red)' }} />
+                {!formData.total && <div className="text-xs text-red mt-1">⚠ OCR could not confidently identify total due</div>}
               </div>
+
+              <div style={{ height: '1px', backgroundColor: 'var(--b)', margin: '16px 0 8px' }}></div>
+              <h3 style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--t3)' }}>
+                GST BREAKDOWN
+              </h3>
+
+              <div className="form-group mt-2">
+                <div className="flex items-center justify-between">
+                  <label className="form-label">CGST Rate (%)</label>
+                  <span className="text-xs text-green font-bold">95%</span>
+                </div>
+                <input type="number" min="0" max="100" step="0.01" className="input" value={formData.gst.cgst_rate} onChange={e => handleGSTChange('cgst_rate', e.target.value)} />
+              </div>
+
+              <div className="form-group">
+                <div className="flex items-center justify-between">
+                  <label className="form-label">CGST Amount (₹)</label>
+                  <span className="text-xs text-green font-bold">95%</span>
+                </div>
+                <input type="text" className="input mono" value={formData.gst.cgst_amount} onChange={e => handleGSTChange('cgst_amount', e.target.value)} />
+              </div>
+
+              <div className="form-group">
+                <div className="flex items-center justify-between">
+                  <label className="form-label">SGST Rate (%)</label>
+                  <span className="text-xs text-green font-bold">95%</span>
+                </div>
+                <input type="number" min="0" max="100" step="0.01" className="input" value={formData.gst.sgst_rate} onChange={e => handleGSTChange('sgst_rate', e.target.value)} />
+              </div>
+
+              <div className="form-group">
+                <div className="flex items-center justify-between">
+                  <label className="form-label">SGST Amount (₹)</label>
+                  <span className="text-xs text-green font-bold">95%</span>
+                </div>
+                <input type="text" className="input mono" value={formData.gst.sgst_amount} onChange={e => handleGSTChange('sgst_amount', e.target.value)} />
+              </div>
+
+              <div className="form-group">
+                <div className="flex items-center justify-between">
+                  <label className="form-label">IGST Rate (%)</label>
+                  <span className="text-xs text-green font-bold">97%</span>
+                </div>
+                <input type="number" min="0" max="100" step="0.01" className="input" value={formData.gst.igst_rate} onChange={e => handleGSTChange('igst_rate', e.target.value)} />
+              </div>
+
+              <div className="form-group">
+                <div className="flex items-center justify-between">
+                  <label className="form-label">IGST Amount (₹)</label>
+                  <span className="text-xs text-green font-bold">95%</span>
+                </div>
+                <input type="text" className="input mono" value={formData.gst.igst_amount} onChange={e => handleGSTChange('igst_amount', e.target.value)} />
+              </div>
+
+              <div className="form-group">
+                <div className="flex items-center justify-between">
+                  <label className="form-label"><span style={{ color: 'var(--t2)' }}>Total GST (₹)</span> <span style={{ color: 'var(--t3)', fontSize: '10px', textTransform: 'lowercase' }}>(auto-computed)</span></label>
+                  <span className="text-xs text-green font-bold">96%</span>
+                </div>
+                <input type="text" className="input mono" value={formData.gst.total_gst} style={{ backgroundColor: 'var(--s3)', pointerEvents: 'none' }} readOnly />
+              </div>
+
+              {hasGstConflict && (
+                <div style={{ backgroundColor: 'rgba(245,166,35,0.1)', border: '1px solid var(--amber)', borderRadius: 'var(--rs)', padding: '12px', marginTop: '8px' }}>
+                  <div style={{ color: 'var(--amber)', fontSize: '13px' }}>
+                    <span style={{ fontWeight: 'bold' }}>⚠ GST Conflict</span> — Both IGST and CGST/SGST are non-zero. Only one should apply per invoice type.
+                  </div>
+                </div>
+              )}
 
               <div style={{ height: '1px', backgroundColor: 'var(--b)', margin: '16px 0 8px' }}></div>
               
               <h3 style={{ fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t2)' }}>
-                Line Items ({data.lineItems?.length || 0})
+                Line Items ({formData.lineItems?.length || 0})
               </h3>
               
               <div style={{ backgroundColor: 'var(--s2)', borderRadius: 'var(--rs)', overflow: 'hidden', border: '1px solid var(--b)' }}>
@@ -277,8 +357,8 @@ export default function ReviewEdit() {
                     </tr>
                   </thead>
                   <tbody>
-                    {data.lineItems && data.lineItems.length > 0 ? (
-                      data.lineItems.map((item, idx) => (
+                    {formData.lineItems && formData.lineItems.length > 0 ? (
+                      formData.lineItems.map((item, idx) => (
                         <tr key={idx} style={{ backgroundColor: 'transparent' }}>
                           <td style={{ fontSize: '12px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={item.description}>
                             {item.description}
