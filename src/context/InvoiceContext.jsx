@@ -39,11 +39,45 @@ export function InvoiceProvider({ children }) {
     localStorage.removeItem('invoiceiq_invoices');
   };
 
+  const [batchJobs, setBatchJobs] = useState(() => {
+    try {
+      const stored = localStorage.getItem('invoiceiq_batches');
+      return stored ? JSON.parse(stored) : [];
+    } catch (e) {
+      console.error('Error reading localStorage for batches:', e);
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem('invoiceiq_batches', JSON.stringify(batchJobs));
+  }, [batchJobs]);
+
+  const addBatchJob = (job) => {
+    setBatchJobs(prev => {
+      const newJob = { ...job, id: job.id || `batch_${Date.now()}`, createdAt: new Date().toISOString() };
+      return [newJob, ...prev];
+    });
+  };
+
+  const removeBatchJob = (id) => {
+    setBatchJobs(prev => prev.filter(job => job.id !== id));
+  };
+  
+  const updateBatchJob = (id, newJobData) => {
+     setBatchJobs(prev => prev.map(job => job.id === id ? { ...job, ...newJobData } : job));
+  };
+
+
   const value = {
     invoices,
     addInvoice,
     removeInvoice,
-    clearAllInvoices
+    clearAllInvoices,
+    batchJobs,
+    addBatchJob,
+    removeBatchJob,
+    updateBatchJob
   };
 
   return (

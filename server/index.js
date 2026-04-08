@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import multer from 'multer';
 import dotenv from 'dotenv';
+import AdmZip from 'adm-zip';
 import { performExtraction } from './extract.js';
 
 dotenv.config();
@@ -37,6 +38,65 @@ app.post('/api/extract', upload.single('file'), async (req, res) => {
   } catch (err) {
     console.error('Extraction Error:', err);
     res.status(500).json({ error: 'Failed to extract data: ' + err.message });
+  }
+});
+
+/**
+ * Endpoint for batch invoice extraction from ZIP
+ */
+app.post('/api/batch-extract', upload.single('file'), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'No file uploaded' });
+  }
+
+  try {
+    const zip = new AdmZip(req.file.buffer);
+    const zipEntries = zip.getEntries();
+    
+    // Filter valid files (images/pdfs) and ignore macosx metadata
+    const validEntries = zipEntries.filter(entry => {
+      if (entry.isDirectory) return false;
+      if (entry.entryName.includes('__MACOSX/')) return false;
+      if (entry.entryName.startsWith('.')) return false;
+      const ext = entry.name.split('.').pop().toLowerCase();
+      return ['pdf', 'png', 'jpg', 'jpeg', 'webp'].includes(ext);
+    });
+
+    if (validEntries.length === 0) {
+      return res.status(400).json({ error: 'No valid invoice files found in ZIP' });
+    }
+
+    const results = [];
+    
+    // Process sequentially to avoid API rate limits
+    for (const entry of validEntries) {
+      const buffer = entry.getData();
+      const filename = entry.name;
+      const ext = filename.split('.').pop().toLowerCase();
+      const mimetype = ext === 'pdf' ? 'application/pdf' : `image/${ext === 'jpg' ? 'jpeg' : ext}`;
+      
+      try {
+        console.log(`[BATCH] Extracting ${filename}...`);
+        const extractedData = await performExtraction(buffer, filename, mimetype);
+        results.push({
+          filename,
+          extractedData,
+          status: 'success'
+        });
+      } catch (err) {
+        console.error(`[BATCH] Error extracting ${filename}:`, err);
+        results.push({
+          filename,
+          error: err.message,
+          status: 'error'
+        });
+      }
+    }
+    
+    res.json({ results });
+  } catch (err) {
+    console.error('Batch Extraction Error:', err);
+    res.status(500).json({ error: 'Failed to process batch: ' + err.message });
   }
 });
 
