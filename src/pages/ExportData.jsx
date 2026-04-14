@@ -1,19 +1,25 @@
 import React, { useState } from 'react';
 import { useToast } from '../components/Toast';
 import { useInvoices } from '../context/InvoiceContext';
+import { useAuth } from '../context/AuthContext';
+import { useVendors } from '../context/VendorContext';
 
 export default function ExportData() {
   const { toast } = useToast();
   const { invoices } = useInvoices();
+  const { currentUser } = useAuth();
+  const { vendors } = useVendors();
+
+  const scopedInvoices = currentUser?.role !== 'owner' ? invoices.filter(i => i.orgId === currentUser.orgId || !i.orgId) : invoices;
 
   const [fromDate, setFromDate] = useState('2024-03-01');
   const [toDate, setToDate] = useState(new Date().toISOString().split('T')[0]);
   const [vendorFilter, setVendorFilter] = useState('All Vendors');
   const [sourceFilter, setSourceFilter] = useState('All Sources');
 
-  const uniqueVendors = [...new Set(invoices.map(i => i.vendor).filter(Boolean))];
+  const uniqueVendors = [...new Set(scopedInvoices.map(i => i.vendor).filter(Boolean))];
 
-  const filteredInvoices = invoices.filter(inv => {
+  const filteredInvoices = scopedInvoices.filter(inv => {
     // Basic date parsing block
     const invDate = new Date(inv.date);
     const fromD = new Date(fromDate);
@@ -41,7 +47,7 @@ export default function ExportData() {
     const headers = [
       'Invoice No', 'Vendor Name', 'Vendor GSTIN', 'Invoice Date', 'Due Date', 'PO Number',
       'Currency', 'Subtotal (₹)', 'CGST Rate (%)', 'CGST Amount (₹)', 'SGST Rate (%)', 'SGST Amount (₹)',
-      'IGST Rate (%)', 'IGST Amount (₹)', 'Total GST (₹)', 'Total Amount (₹)', 'Bank Account', 'IFSC Code', 'Extracted At'
+      'IGST Rate (%)', 'IGST Amount (₹)', 'Total GST (₹)', 'Total Amount (₹)', 'Total Override Note', 'Bank Account', 'IFSC Code', 'Extracted At'
     ];
     
     // Fallback if gst isn't present on old invoices
@@ -64,6 +70,7 @@ export default function ExportData() {
       safeGst(inv).igst_amount,
       safeGst(inv).total_gst,
       inv.total || '0.00',
+      inv.totalModifiedBy ? `Modified by ${inv.totalModifiedBy}` : '',
       inv.bankAccount || 'N/A',
       inv.ifsc || 'N/A',
       inv.createdAt ? new Date(inv.createdAt).toLocaleString() : 'N/A'

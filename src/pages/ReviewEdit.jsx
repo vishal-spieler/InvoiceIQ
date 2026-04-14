@@ -2,19 +2,21 @@ import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useToast } from '../components/Toast';
 import { useInvoices } from '../context/InvoiceContext';
+import { useAuth } from '../context/AuthContext';
 
 export default function ReviewEdit() {
   const location = useLocation();
   const navigate = useNavigate();
   const { toast } = useToast();
   const { addInvoice } = useInvoices();
+  const { currentUser } = useAuth();
   const [showDebug, setShowDebug] = useState(false);
   
   const { isBatch, batchId, batchResults, vendor: initialVendor } = location.state || {};
   const [currentIndex, setCurrentIndex] = useState(0);
 
   const currentItem = isBatch && batchResults ? batchResults[currentIndex] : location.state;
-  const { filename = 'INV-20240311', previewUrl, fileType, extractedData, vendor } = currentItem || {};
+  const { filename = 'INV-20240311', previewUrl, fileType, extractedData, vendor, orgId } = currentItem || {};
   
   const currentVendor = isBatch ? initialVendor : vendor;
   
@@ -59,6 +61,20 @@ export default function ReviewEdit() {
     setFormData(generateData());
   }, [currentIndex, extractedData, currentVendor]);
 
+  const handleTotalChange = (value) => {
+    setFormData(prev => ({
+      ...prev,
+      total: value,
+      totalModifiedBy: currentUser?.name || 'User'
+    }));
+  };
+
+  const parsedSub = parseFloat(formData.subtotal?.replace(/,/g, '') || 0);
+  const parsedTax = parseFloat(formData.gst?.total_gst || formData.totalTax || 0);
+  const parsedTotal = parseFloat(formData.total?.replace(/,/g, '') || 0);
+  
+  const hasMathMismatch = Math.round(parsedSub + parsedTax) !== Math.round(parsedTotal);
+
   const handleGSTChange = (field, value) => {
     const num = parseFloat(value) || 0;
     setFormData(prev => {
@@ -78,7 +94,8 @@ export default function ReviewEdit() {
       previewUrl,
       source: isBatch ? 'Batch Job' : 'Upload',
       status: 'Exported',
-      batchId: isBatch ? batchId : undefined
+      batchId: isBatch ? batchId : undefined,
+      orgId
     });
     
     if (isBatch) {
@@ -262,11 +279,16 @@ export default function ReviewEdit() {
 
               <div className="form-group">
                 <div className="flex items-center justify-between">
-                  <label className="form-label border-red">Total Amount</label>
-                  <span className={`text-xs ${formData.total ? 'text-green' : 'text-red'} font-bold`}>{formData.total ? 'FOUND' : 'LOW CONFIDENCE'}</span>
+                  <label className="form-label font-bold" style={{ color: hasMathMismatch ? 'var(--red)' : '' }}>
+                    Total Amount {hasMathMismatch && <span style={{ color: 'var(--red)', fontSize: '14px', marginLeft: '2px' }}>*</span>}
+                  </label>
+                  <span className={`text-xs ${formData.total ? (hasMathMismatch ? 'text-red' : 'text-green') : 'text-red'} font-bold`}>
+                    {formData.total ? (hasMathMismatch ? 'MATH MISMATCH' : 'FOUND') : 'LOW CONFIDENCE'}
+                  </span>
                 </div>
-                <input className="input" value={formData.total} onChange={e => setFormData({...formData, total: e.target.value})} style={{ borderColor: formData.total ? 'var(--b2)' : 'var(--red)' }} />
+                <input className="input" value={formData.total} onChange={e => handleTotalChange(e.target.value)} style={{ borderColor: hasMathMismatch ? 'var(--red)' : (formData.total ? 'var(--b2)' : 'var(--amber)') }} />
                 {!formData.total && <div className="text-xs text-red mt-1">⚠ OCR could not confidently identify total due</div>}
+                {hasMathMismatch && <div className="text-xs text-red mt-1">⚠ Subtotal + Tax ({Math.round(parsedSub + parsedTax)}) does not match Total ({Math.round(parsedTotal)}).</div>}
               </div>
 
               <div style={{ height: '1px', backgroundColor: 'var(--b)', margin: '16px 0 8px' }}></div>

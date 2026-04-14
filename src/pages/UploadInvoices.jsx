@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useToast } from '../components/Toast';
 import { useInvoices } from '../context/InvoiceContext';
 import { useVendors } from '../context/VendorContext';
+import { useAuth } from '../context/AuthContext';
 import { processInvoice } from '../utils/extraction';
 
 export default function UploadInvoices() {
@@ -13,8 +14,10 @@ export default function UploadInvoices() {
   const { toast } = useToast();
   const { invoices, addInvoice, addBatchJob } = useInvoices();
   const { vendors } = useVendors();
+  const { currentUser } = useAuth();
   const fileInputRef = useRef(null);
   
+  const isVendor = currentUser?.role === 'vendor';
   const [selectedVendor, setSelectedVendor] = useState('');
   const [vendorError, setVendorError] = useState(false);
 
@@ -88,6 +91,7 @@ export default function UploadInvoices() {
         addBatchJob({
            filename: file.name,
            vendor: selectedVendor,
+           orgId: currentUser?.orgId,
            results: data.results,
            successCount,
            failCount,
@@ -116,7 +120,7 @@ export default function UploadInvoices() {
         Drag and drop PDFs or browse — single file or batch ZIP.
       </div>
 
-      {/* Vendor Selection Bar */}
+      {/* Vendor Selection Bar / Tag */}
       <div style={{ 
         backgroundColor: 'var(--surface)', 
         border: `1px solid ${vendorError ? 'var(--amber)' : 'var(--b)'}`, 
@@ -131,8 +135,8 @@ export default function UploadInvoices() {
             🏢
           </div>
           <div>
-            <div style={{ fontSize: '13px', fontWeight: 600, fontFamily: 'Syne' }}>Select Vendor</div>
-            <div className="text-xs text-t2 mt-1">Extractions will be tagged to the selected vendor</div>
+            <div style={{ fontSize: '13px', fontWeight: 600, fontFamily: 'Syne' }}>Select Supplier</div>
+            <div className="text-xs text-t2 mt-1">Extractions will be tagged to the selected supplier</div>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -146,7 +150,7 @@ export default function UploadInvoices() {
               setVendorError(false);
             }}
           >
-            <option value="">-- Select Vendor --</option>
+            <option value="">-- Select Supplier --</option>
             {vendors.map(v => (
               <option key={v.id} value={v.name}>{v.name}</option>
             ))}
@@ -260,7 +264,8 @@ export default function UploadInvoices() {
                     previewUrl: uploadedFile.url, 
                     fileType: uploadedFile.type,
                     extractedData: uploadedFile.extractedData,
-                    vendor: selectedVendor
+                    vendor: selectedVendor,
+                    orgId: currentUser?.orgId
                   } 
                 }); 
               }}
