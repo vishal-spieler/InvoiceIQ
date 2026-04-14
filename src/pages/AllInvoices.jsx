@@ -1,18 +1,24 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useInvoices } from '../context/InvoiceContext';
+import { useAuth } from '../context/AuthContext';
+import { useVendors } from '../context/VendorContext';
 
 export default function AllInvoices() {
   const navigate = useNavigate();
   const { invoices } = useInvoices();
+  const { currentUser } = useAuth();
+  const { vendors } = useVendors();
+
+  const scopedInvoices = currentUser?.role !== 'owner' ? invoices.filter(i => i.orgId === currentUser.orgId || !i.orgId) : invoices;
 
   const [statusFilter, setStatusFilter] = useState('All');
   const [vendorFilter, setVendorFilter] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
 
-  const uniqueVendors = [...new Set(invoices.map(i => i.vendor).filter(Boolean))];
+  const uniqueVendors = [...new Set(scopedInvoices.map(i => i.vendor).filter(Boolean))];
 
-  const filteredInvoices = invoices.filter(inv => {
+  const filteredInvoices = scopedInvoices.filter(inv => {
     const matchStatus = statusFilter === 'All' || inv.status === statusFilter;
     const matchVendor = vendorFilter === 'All' || inv.vendor === vendorFilter;
     const searchLower = searchQuery.toLowerCase();
@@ -30,7 +36,7 @@ export default function AllInvoices() {
       {/* Page Context Row */}
       <div className="flex items-center justify-between">
         <div style={{ color: 'var(--t2)', fontSize: '13px' }}>
-          {invoices.length} invoices · {invoices.filter(i => i.status === 'Pending').length} pending review
+          {scopedInvoices.length} invoices · {scopedInvoices.filter(i => i.status === 'Pending').length} pending review
         </div>
         <div className="flex items-center gap-3">
           <select className="select" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
@@ -115,7 +121,7 @@ export default function AllInvoices() {
 
         {/* Footer Pagination */}
         <div className="flex items-center justify-between" style={{ padding: '16px 20px', borderTop: '1px solid var(--b)', fontSize: '13px', color: 'var(--t2)' }}>
-          <div>Showing {filteredInvoices.length} of {invoices.length}</div>
+          <div>Showing {filteredInvoices.length} of {scopedInvoices.length}</div>
           <div className="flex items-center gap-1">
             <button className="btn bg btn-sm" style={{ padding: '4px 8px' }}>← Prev</button>
             <button className="btn" style={{ padding: '4px 10px', backgroundColor: 'var(--accent)', color: '#fff' }}>1</button>

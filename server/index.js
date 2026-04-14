@@ -81,6 +81,8 @@ app.post('/api/batch-extract', upload.single('file'), async (req, res) => {
         results.push({
           filename,
           extractedData,
+          fileType: mimetype,
+          previewUrl: `data:${mimetype};base64,${buffer.toString('base64')}`,
           status: 'success'
         });
       } catch (err) {

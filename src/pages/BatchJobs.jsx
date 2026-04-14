@@ -1,10 +1,16 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useInvoices } from '../context/InvoiceContext';
+import { useAuth } from '../context/AuthContext';
 
 export default function BatchJobs() {
   const navigate = useNavigate();
   const { batchJobs } = useInvoices();
+  const { currentUser } = useAuth();
+
+  const scopedBatchJobs = currentUser?.role !== 'owner' 
+    ? batchJobs.filter(j => j.orgId === currentUser.orgId)
+    : batchJobs;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -22,7 +28,7 @@ export default function BatchJobs() {
       {/* Grid Status Cards */}
       <div className="grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px' }}>
         
-        {batchJobs.slice(0, 3).map(job => {
+        {scopedBatchJobs.slice(0, 3).map(job => {
           const isError = job.status === 'Errors';
           const isDone = job.status === 'Done';
           const badgeClass = isError ? 'b-e' : isDone ? 'b-s' : 'b-i';
@@ -59,7 +65,7 @@ export default function BatchJobs() {
           );
         })}
 
-        {batchJobs.length === 0 && (
+        {scopedBatchJobs.length === 0 && (
           <div style={{ gridColumn: '1 / -1', padding: '40px', textAlign: 'center', backgroundColor: 'var(--surface)', borderRadius: 'var(--r)', border: '1px dashed var(--b2)', color: 'var(--t2)' }}>
             <div style={{ fontSize: '32px', marginBottom: '12px' }}>📁</div>
             <div style={{ fontWeight: 500, color: 'var(--t)' }}>No batch jobs yet</div>
@@ -89,7 +95,7 @@ export default function BatchJobs() {
               </tr>
             </thead>
             <tbody>
-              {batchJobs.map(job => (
+              {scopedBatchJobs.map(job => (
                 <tr key={job.id}>
                   <td className="mono" style={{ color: 'var(--t2)' }}>{job.id}</td>
                   <td>{job.filename}</td>
@@ -104,7 +110,7 @@ export default function BatchJobs() {
                   </td>
                 </tr>
               ))}
-              {batchJobs.length === 0 && (
+              {scopedBatchJobs.length === 0 && (
                 <tr>
                   <td colSpan="8" style={{ textAlign: 'center', padding: '24px', color: 'var(--t3)' }}>No history available</td>
                 </tr>
