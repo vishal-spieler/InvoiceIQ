@@ -10,7 +10,11 @@ export default function ExportData() {
   const { currentUser } = useAuth();
   const { vendors } = useVendors();
 
-  const scopedInvoices = currentUser?.role !== 'owner' ? invoices.filter(i => i.orgId === currentUser.orgId || !i.orgId) : invoices;
+  const scopedInvoices = React.useMemo(() => {
+    if (currentUser?.role === 'owner') return invoices;
+    if (currentUser?.role === 'employee') return invoices.filter(i => i.userId === currentUser.id);
+    return invoices.filter(i => i.orgId === currentUser?.orgId || !i.orgId);
+  }, [invoices, currentUser]);
 
   const [fromDate, setFromDate] = useState('2024-03-01');
   const [toDate, setToDate] = useState(new Date().toISOString().split('T')[0]);
@@ -20,8 +24,9 @@ export default function ExportData() {
   const uniqueVendors = [...new Set(scopedInvoices.map(i => i.vendor).filter(Boolean))];
 
   const filteredInvoices = scopedInvoices.filter(inv => {
-    // Basic date parsing block
-    const invDate = new Date(inv.date);
+    // Basic date parsing block using createdAt (or fallback to true if missing)
+    const recordDateStr = inv.createdAt || inv.date;
+    const invDate = new Date(recordDateStr);
     const fromD = new Date(fromDate);
     const toD = new Date(toDate);
     
@@ -29,7 +34,8 @@ export default function ExportData() {
     fromD.setHours(0,0,0,0);
     toD.setHours(23,59,59,999);
     
-    const isWithinDate = isNaN(invDate.getTime()) ? true : (invDate >= fromD && invDate <= toD);
+    // If invalid date or null, we just include it
+    const isWithinDate = !recordDateStr || isNaN(invDate.getTime()) ? true : (invDate >= fromD && invDate <= toD);
     const matchVendor = vendorFilter === 'All Vendors' || inv.vendor === vendorFilter;
     const matchSource = sourceFilter === 'All Sources' || 
                         (sourceFilter === 'Email only' && inv.source === 'Email') || 
@@ -90,7 +96,8 @@ export default function ExportData() {
       ...rows.map(row => row.map(escapeCSV).join(','))
     ].join('\n');
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    // Add utf-8 BOM to ensure Excel reads it properly
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     

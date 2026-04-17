@@ -25,6 +25,7 @@ export default function Employees() {
 
   const myEmployees = employees.filter(e => e.orgId === currentUser.orgId);
   const employeeFlags = activeOrg?.employeeFlags || {};
+  const adminFlags = activeOrg?.adminFlags || {};
 
   const [showModal, setShowModal] = useState(false);
   const [editingEmp, setEditingEmp] = useState(null);
@@ -35,7 +36,7 @@ export default function Employees() {
   const [mActive, setMActive] = useState(true);
   const [mAccess, setMAccess] = useState({});
 
-  const availablePages = PAGE_DEFINITIONS.filter(p => employeeFlags[p.key]);
+  const availablePages = PAGE_DEFINITIONS.filter(p => employeeFlags[p.key] && adminFlags[p.key]);
 
   const openModal = (emp = null) => {
     setEditingEmp(emp);
@@ -43,7 +44,15 @@ export default function Employees() {
     setMEmail(emp ? emp.email : '');
     setMPass(emp ? emp.password : '');
     setMActive(emp ? emp.active : true);
-    setMAccess(emp ? { ...emp.pageAccess } : {});
+    
+    if (emp) {
+      setMAccess({ ...emp.pageAccess });
+    } else {
+      const defaults = {};
+      availablePages.forEach(p => defaults[p.key] = true);
+      setMAccess(defaults);
+    }
+    
     setShowModal(true);
   };
 
@@ -66,7 +75,7 @@ export default function Employees() {
       active: mActive,
       pageAccess: mAccess,
       password: mPass || editingEmp?.password, // fallback to existing pass
-      avatar: mName.substring(0,2).toUpperCase(),
+      avatar: mName.substring(0, 2).toUpperCase(),
       orgId: currentUser.orgId
     };
 
@@ -97,16 +106,16 @@ export default function Employees() {
 
       <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
         <div className="card" style={{ borderTop: '3px solid var(--accent)' }}>
-           <div className="text-xs text-t3 font-bold uppercase tracking-wider mb-2">Total Employees</div>
-           <div style={{ fontSize: '28px', fontWeight: 700, color: 'var(--accent)' }}>{myEmployees.length}</div>
+          <div className="text-xs text-t3 font-bold uppercase tracking-wider mb-2">Total Employees</div>
+          <div style={{ fontSize: '28px', fontWeight: 700, color: 'var(--accent)' }}>{myEmployees.length}</div>
         </div>
         <div className="card" style={{ borderTop: '3px solid var(--green)' }}>
-           <div className="text-xs text-t3 font-bold uppercase tracking-wider mb-2">Active</div>
-           <div style={{ fontSize: '28px', fontWeight: 700, color: 'var(--green)' }}>{myEmployees.filter(e => e.active).length}</div>
+          <div className="text-xs text-t3 font-bold uppercase tracking-wider mb-2">Active</div>
+          <div style={{ fontSize: '28px', fontWeight: 700, color: 'var(--green)' }}>{myEmployees.filter(e => e.active).length}</div>
         </div>
         <div className="card" style={{ borderTop: '3px solid var(--red)' }}>
-           <div className="text-xs text-t3 font-bold uppercase tracking-wider mb-2">Inactive</div>
-           <div style={{ fontSize: '28px', fontWeight: 700, color: 'var(--red)' }}>{myEmployees.filter(e => !e.active).length}</div>
+          <div className="text-xs text-t3 font-bold uppercase tracking-wider mb-2">Inactive</div>
+          <div style={{ fontSize: '28px', fontWeight: 700, color: 'var(--red)' }}>{myEmployees.filter(e => !e.active).length}</div>
         </div>
       </div>
 
@@ -144,7 +153,7 @@ export default function Employees() {
                         </div>
                       ))}
                       {accessKeys.length > 4 && (
-                         <div style={{ fontSize: '10px', backgroundColor: 'var(--b)', padding: '2px 6px', borderRadius: '4px', color: 'var(--t2)' }}>
+                        <div style={{ fontSize: '10px', backgroundColor: 'var(--b)', padding: '2px 6px', borderRadius: '4px', color: 'var(--t2)' }}>
                           +{accessKeys.length - 4} more
                         </div>
                       )}
@@ -156,11 +165,11 @@ export default function Employees() {
                   </td>
                   <td style={{ padding: '12px 16px', borderBottom: '1px solid var(--b)', textAlign: 'right' }}>
                     <div className="flex justify-end gap-2">
-                      <button className="btn bg btn-xs" onClick={() => openModal(emp)}><Edit size={12} className="mr-1"/> Edit</button>
+                      <button className="btn bg btn-xs" onClick={() => openModal(emp)}><Edit size={12} className="mr-1" /> Edit</button>
                       {emp.active ? (
-                        <button className="btn btn-xs" style={{ color: 'var(--red)', backgroundColor: 'rgba(239, 68, 68, 0.1)' }} onClick={() => { updateEmployee(emp.id, {active: false}); toast('User deactivated', 'amber'); }}>Deactivate</button>
+                        <button className="btn btn-xs" style={{ color: 'var(--red)', backgroundColor: 'rgba(239, 68, 68, 0.1)' }} onClick={() => { updateEmployee(emp.id, { active: false }); toast('User deactivated', 'amber'); }}>Deactivate</button>
                       ) : (
-                        <button className="btn btn-xs" style={{ color: 'var(--green)', backgroundColor: 'rgba(34, 197, 94, 0.1)' }} onClick={() => { updateEmployee(emp.id, {active: true}); toast('User activated', 'green'); }}>Activate</button>
+                        <button className="btn btn-xs" style={{ color: 'var(--green)', backgroundColor: 'rgba(34, 197, 94, 0.1)' }} onClick={() => { updateEmployee(emp.id, { active: true }); toast('User activated', 'green'); }}>Activate</button>
                       )}
                     </div>
                   </td>
@@ -178,16 +187,16 @@ export default function Employees() {
               <h3 style={{ fontSize: '18px', fontWeight: 600 }}>{editingEmp ? 'Edit Employee' : 'Add Employee'}</h3>
               <p className="text-xs text-t2 mt-1">Create login for a team member and set their page access.</p>
             </div>
-            
-            <div className="form-group"><label className="form-label">FULL NAME</label><input className="input" value={mName} onChange={e=>setMName(e.target.value)} /></div>
-            <div className="form-group"><label className="form-label">EMAIL ADDRESS</label><input type="email" className="input" value={mEmail} onChange={e=>setMEmail(e.target.value)} disabled={!!editingEmp} /></div>
+
+            <div className="form-group"><label className="form-label">FULL NAME</label><input className="input" value={mName} onChange={e => setMName(e.target.value)} /></div>
+            <div className="form-group"><label className="form-label">EMAIL ADDRESS</label><input type="email" className="input" value={mEmail} onChange={e => setMEmail(e.target.value)} disabled={!!editingEmp} /></div>
             <div className="form-group">
               <label className="form-label">PASSWORD {editingEmp && <span className="text-t3 lowercase normal-case">(leave blank to keep current)</span>}</label>
-              <input type="text" className="input" value={mPass} onChange={e=>setMPass(e.target.value)} />
+              <input type="text" className="input" value={mPass} onChange={e => setMPass(e.target.value)} />
             </div>
             <div className="form-group">
               <label className="form-label">STATUS</label>
-              <select className="select" value={mActive ? 'active' : 'inactive'} onChange={e=>setMActive(e.target.value === 'active')}>
+              <select className="select" value={mActive ? 'active' : 'inactive'} onChange={e => setMActive(e.target.value === 'active')}>
                 <option value="active">Active</option>
                 <option value="inactive">Inactive</option>
               </select>
@@ -216,7 +225,7 @@ export default function Employees() {
                       <div className="text-xs font-medium text-t">{page.label}</div>
                       <div className="text-xs text-t3 mt-0.5">{page.desc}</div>
                     </div>
-                    <div className={`toggle ${mAccess[page.key] ? 'on' : ''}`} onClick={() => setMAccess({...mAccess, [page.key]: !mAccess[page.key]})}>
+                    <div className={`toggle ${mAccess[page.key] ? 'on' : ''}`} onClick={() => setMAccess({ ...mAccess, [page.key]: !mAccess[page.key] })}>
                       <div className="toggle-knob"></div>
                     </div>
                   </div>
@@ -230,7 +239,7 @@ export default function Employees() {
             </div>
 
             <div className="flex justify-end gap-2 mt-4">
-              <button className="btn" onClick={() => setShowModal(false)}>Cancel</button>
+              <button className="btn btn-cancel" onClick={() => setShowModal(false)}>Cancel</button>
               <button className="btn bp" onClick={saveModal}>{editingEmp ? 'Save Changes' : 'Add Employee'}</button>
             </div>
           </div>

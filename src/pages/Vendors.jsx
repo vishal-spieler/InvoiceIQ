@@ -83,7 +83,7 @@ export default function Vendors() {
               <h2 style={{ fontSize: '17px', fontWeight: 700, marginBottom: '4px' }}>Add Vendor Template</h2>
               <p className="text-t2 text-xs">Define extraction rules for a new vendor.</p>
             </div>
-            
+
             <div className="form-group">
               <label className="form-label">Vendor Name *</label>
               <input type="text" className="input" placeholder="e.g. Infosys Limited" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} style={{ borderColor: errors.name ? 'var(--red)' : undefined }} />
@@ -116,7 +116,7 @@ export default function Vendors() {
             </div>
 
             <div className="flex justify-between items-center" style={{ justifyContent: 'flex-end', gap: '12px', marginTop: '8px' }}>
-              <button className="btn bg" onClick={() => setShowModal(false)}>Cancel</button>
+              <button className="btn bg btn-cancel" onClick={() => setShowModal(false)}>Cancel</button>
               <button className="btn bp" onClick={handleSave}>Save Template</button>
             </div>
           </div>

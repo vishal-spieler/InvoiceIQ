@@ -26,7 +26,7 @@ export default function OwnerOrgs() {
   const [cAdminEmail, setCAdminEmail] = useState('');
   const [cAdminPass, setCAdminPass] = useState('');
   const [cFlagsExpanded, setCFlagsExpanded] = useState(false);
-  
+
   const [cAdminFlags, setCAdminFlags] = useState({ ...FLAG_DEFAULTS });
   const [cEmpFlags, setCEmpFlags] = useState({ ...FLAG_DEFAULTS });
 
@@ -40,7 +40,7 @@ export default function OwnerOrgs() {
 
     const res = addOrg(
       { name: cName, shortName: cShort, industry: cIndustry, plan: cPlan, expiresAt: cExpiry, status: 'Active', adminFlags: cAdminFlags, employeeFlags: cEmpFlags, email: cAdminEmail },
-      { name: cAdminName, email: cAdminEmail, password: cAdminPass, avatar: cAdminName.substring(0,2).toUpperCase() }
+      { name: cAdminName, email: cAdminEmail, password: cAdminPass, avatar: cAdminName.substring(0, 2).toUpperCase() }
     );
 
     if (res.success) {
@@ -75,20 +75,20 @@ export default function OwnerOrgs() {
 
       <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
         <div className="card" style={{ borderTop: '3px solid var(--accent)' }}>
-           <div className="text-xs text-t3 font-bold uppercase tracking-wider mb-2">Total Orgs</div>
-           <div style={{ fontSize: '28px', fontWeight: 700, color: 'var(--accent)' }}>{orgs.length}</div>
+          <div className="text-xs text-t3 font-bold uppercase tracking-wider mb-2">Total Orgs</div>
+          <div style={{ fontSize: '28px', fontWeight: 700, color: 'var(--accent)' }}>{orgs.length}</div>
         </div>
         <div className="card" style={{ borderTop: '3px solid var(--green)' }}>
-           <div className="text-xs text-t3 font-bold uppercase tracking-wider mb-2">Active</div>
-           <div style={{ fontSize: '28px', fontWeight: 700, color: 'var(--green)' }}>{orgs.filter(o => o.status === 'Active').length}</div>
+          <div className="text-xs text-t3 font-bold uppercase tracking-wider mb-2">Active</div>
+          <div style={{ fontSize: '28px', fontWeight: 700, color: 'var(--green)' }}>{orgs.filter(o => o.status === 'Active').length}</div>
         </div>
         <div className="card" style={{ borderTop: '3px solid var(--amber)' }}>
-           <div className="text-xs text-t3 font-bold uppercase tracking-wider mb-2">Expired</div>
-           <div style={{ fontSize: '28px', fontWeight: 700, color: 'var(--amber)' }}>{orgs.filter(o => o.status === 'Expired').length}</div>
+          <div className="text-xs text-t3 font-bold uppercase tracking-wider mb-2">Expired</div>
+          <div style={{ fontSize: '28px', fontWeight: 700, color: 'var(--amber)' }}>{orgs.filter(o => o.status === 'Expired').length}</div>
         </div>
         <div className="card" style={{ borderTop: '3px solid var(--red)' }}>
-           <div className="text-xs text-t3 font-bold uppercase tracking-wider mb-2">Suspended</div>
-           <div style={{ fontSize: '28px', fontWeight: 700, color: 'var(--red)' }}>{orgs.filter(o => o.status === 'Suspended').length}</div>
+          <div className="text-xs text-t3 font-bold uppercase tracking-wider mb-2">Suspended</div>
+          <div style={{ fontSize: '28px', fontWeight: 700, color: 'var(--red)' }}>{orgs.filter(o => o.status === 'Suspended').length}</div>
         </div>
       </div>
 
@@ -112,7 +112,7 @@ export default function OwnerOrgs() {
                   <td style={{ padding: '12px 16px', borderBottom: '1px solid var(--b)' }}>
                     <div className="flex items-center gap-3">
                       <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'linear-gradient(135deg, var(--accent), var(--teal))', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '12px', fontWeight: 600 }}>
-                        {org.shortName.substring(0,2).toUpperCase()}
+                        {org.shortName.substring(0, 2).toUpperCase()}
                       </div>
                       <div>
                         <div style={{ fontWeight: 600, color: 'var(--t)' }}>{org.name}</div>
@@ -136,8 +136,8 @@ export default function OwnerOrgs() {
                   <td style={{ padding: '12px 16px', borderBottom: '1px solid var(--b)', textAlign: 'right' }}>
                     <div className="flex justify-end gap-2">
                       <button className="btn bg btn-xs" onClick={() => setShowManage({ ...org })}>Manage</button>
-                      {org.status === 'Active' && <button className="btn btn-xs" style={{ color: 'var(--red)', backgroundColor: 'rgba(239, 68, 68, 0.1)' }} onClick={() => { updateOrg(org.id, {status: 'Suspended'}); toast(`🔒 ${org.name} suspended`, 'amber'); }}>Suspend</button>}
-                      {org.status === 'Suspended' && <button className="btn btn-xs" style={{ color: 'var(--green)', backgroundColor: 'rgba(34, 197, 94, 0.1)' }} onClick={() => { updateOrg(org.id, {status: 'Active'}); toast(`✅ ${org.name} activated`, 'green'); }}>Activate</button>}
+                      {org.status === 'Active' && <button className="btn btn-xs" style={{ color: 'var(--red)', backgroundColor: 'rgba(239, 68, 68, 0.1)' }} onClick={() => { updateOrg(org.id, { status: 'Suspended' }); toast(`🔒 ${org.name} suspended`, 'amber'); }}>Suspend</button>}
+                      {org.status === 'Suspended' && <button className="btn btn-xs" style={{ color: 'var(--green)', backgroundColor: 'rgba(34, 197, 94, 0.1)' }} onClick={() => { updateOrg(org.id, { status: 'Active' }); toast(`✅ ${org.name} activated`, 'green'); }}>Activate</button>}
                     </div>
                   </td>
                 </tr>
@@ -154,27 +154,27 @@ export default function OwnerOrgs() {
               <h3 style={{ fontSize: '18px', fontWeight: 600 }}>Create Organisation</h3>
               <p className="text-xs text-t2 mt-1">Set up a new client account.</p>
             </div>
-            
+
             <div className="grid grid-cols-2 gap-4">
-              <div className="form-group"><label className="form-label">ORGANISATION NAME</label><input className="input" placeholder="e.g. Infosys Limited" value={cName} onChange={e=>setCName(e.target.value)} /></div>
-              <div className="form-group"><label className="form-label">SHORT NAME</label><input className="input" placeholder="e.g. Infosys" maxLength={12} value={cShort} onChange={e=>setCShort(e.target.value)} /></div>
+              <div className="form-group"><label className="form-label">ORGANISATION NAME</label><input className="input" placeholder="e.g. Infosys Limited" value={cName} onChange={e => setCName(e.target.value)} /></div>
+              <div className="form-group"><label className="form-label">SHORT NAME</label><input className="input" placeholder="e.g. Infosys" maxLength={12} value={cShort} onChange={e => setCShort(e.target.value)} /></div>
               <div className="form-group"><label className="form-label">INDUSTRY</label>
-                <select className="select" value={cIndustry} onChange={e=>setCIndustry(e.target.value)}>
+                <select className="select" value={cIndustry} onChange={e => setCIndustry(e.target.value)}>
                   <option>IT Services</option><option>Manufacturing</option><option>Retail</option><option>Healthcare</option><option>Finance</option><option>Other</option>
                 </select>
               </div>
               <div className="form-group"><label className="form-label">PLAN</label>
-                <select className="select" value={cPlan} onChange={e=>setCPlan(e.target.value)}><option>Starter</option><option>Professional</option><option>Enterprise</option></select>
+                <select className="select" value={cPlan} onChange={e => setCPlan(e.target.value)}><option>Starter</option><option>Professional</option><option>Enterprise</option></select>
               </div>
-              <div className="form-group"><label className="form-label">EXPIRY DATE</label><input type="date" className="input" value={cExpiry} onChange={e=>setCExpiry(e.target.value)} /></div>
+              <div className="form-group"><label className="form-label">EXPIRY DATE</label><input type="date" className="input" value={cExpiry} onChange={e => setCExpiry(e.target.value)} /></div>
             </div>
-            
+
             <div style={{ borderTop: '1px solid var(--b)', margin: '8px 0' }}></div>
-            
+
             <div className="grid grid-cols-2 gap-4">
-              <div className="form-group"><label className="form-label">ORG ADMIN NAME</label><input className="input" placeholder="e.g. Arjun Patel" value={cAdminName} onChange={e=>setCAdminName(e.target.value)} /></div>
-              <div className="form-group"><label className="form-label">ORG ADMIN EMAIL</label><input type="email" className="input" value={cAdminEmail} onChange={e=>setCAdminEmail(e.target.value)} /></div>
-              <div className="form-group" style={{ gridColumn: 'span 2' }}><label className="form-label">ORG ADMIN PASSWORD</label><input type="text" className="input" placeholder="min 8 chars" value={cAdminPass} onChange={e=>setCAdminPass(e.target.value)} /></div>
+              <div className="form-group"><label className="form-label">ORG ADMIN NAME</label><input className="input" placeholder="e.g. Arjun Patel" value={cAdminName} onChange={e => setCAdminName(e.target.value)} /></div>
+              <div className="form-group"><label className="form-label">ORG ADMIN EMAIL</label><input type="email" className="input" value={cAdminEmail} onChange={e => setCAdminEmail(e.target.value)} /></div>
+              <div className="form-group" style={{ gridColumn: 'span 2' }}><label className="form-label">ORG ADMIN PASSWORD</label><input type="text" className="input" placeholder="min 8 chars" value={cAdminPass} onChange={e => setCAdminPass(e.target.value)} /></div>
             </div>
 
             <div style={{ borderTop: '1px solid var(--b)', margin: '8px 0' }}></div>
@@ -191,7 +191,7 @@ export default function OwnerOrgs() {
                     {Object.keys(cAdminFlags).map(key => (
                       <div key={`admin-${key}`} className="flex justify-between items-center py-2" style={{ borderBottom: '1px solid var(--b)' }}>
                         <span className="text-xs font-medium">{key}</span>
-                        <div className={`toggle ${cAdminFlags[key] ? 'on' : ''}`} onClick={() => setCAdminFlags({...cAdminFlags, [key]: !cAdminFlags[key]})}>
+                        <div className={`toggle ${cAdminFlags[key] ? 'on' : ''}`} onClick={() => setCAdminFlags({ ...cAdminFlags, [key]: !cAdminFlags[key] })}>
                           <div className="toggle-knob"></div>
                         </div>
                       </div>
@@ -202,7 +202,7 @@ export default function OwnerOrgs() {
                     {Object.keys(cEmpFlags).map(key => (
                       <div key={`emp-${key}`} className="flex justify-between items-center py-2" style={{ borderBottom: '1px solid var(--b)' }}>
                         <span className="text-xs font-medium">{key}</span>
-                        <div className={`toggle ${cEmpFlags[key] ? 'on' : ''}`} onClick={() => setCEmpFlags({...cEmpFlags, [key]: !cEmpFlags[key]})}>
+                        <div className={`toggle ${cEmpFlags[key] ? 'on' : ''}`} onClick={() => setCEmpFlags({ ...cEmpFlags, [key]: !cEmpFlags[key] })}>
                           <div className="toggle-knob"></div>
                         </div>
                       </div>
@@ -213,7 +213,7 @@ export default function OwnerOrgs() {
             </div>
 
             <div className="flex justify-end gap-2 mt-4">
-              <button className="btn" onClick={() => setShowCreate(false)}>Cancel</button>
+              <button className="btn btn-cancel" onClick={() => setShowCreate(false)}>Cancel</button>
               <button className="btn bp" onClick={handleCreate}>Create Organisation</button>
             </div>
           </div>
@@ -226,7 +226,7 @@ export default function OwnerOrgs() {
             <div>
               <h3 style={{ fontSize: '18px', fontWeight: 600 }}>Manage {showManage.name}</h3>
             </div>
-            
+
             <div className="flex gap-4 border-b border-b">
               <div className={`cursor-pointer pb-2 font-medium text-sm ${manageTab === 'details' ? 'text-accent border-b-2 border-accent' : 'text-t2'}`} onClick={() => setManageTab('details')}>Account Details</div>
               <div className={`cursor-pointer pb-2 font-medium text-sm ${manageTab === 'flags' ? 'text-accent border-b-2 border-accent' : 'text-t2'}`} onClick={() => setManageTab('flags')}>Feature Flags</div>
@@ -234,13 +234,13 @@ export default function OwnerOrgs() {
 
             {manageTab === 'details' && (
               <div className="col gap-4">
-                <div className="form-group"><label className="form-label">ORG NAME</label><input className="input" value={showManage.name} onChange={e=>setShowManage({...showManage, name: e.target.value})} /></div>
-                <div className="form-group"><label className="form-label">SHORT NAME</label><input className="input" value={showManage.shortName} onChange={e=>setShowManage({...showManage, shortName: e.target.value})} /></div>
-                <div className="form-group"><label className="form-label">EXPIRY DATE</label><input type="date" className="input" value={showManage.expiresAt} onChange={e=>setShowManage({...showManage, expiresAt: e.target.value})} /></div>
+                <div className="form-group"><label className="form-label">ORG NAME</label><input className="input" value={showManage.name} onChange={e => setShowManage({ ...showManage, name: e.target.value })} /></div>
+                <div className="form-group"><label className="form-label">SHORT NAME</label><input className="input" value={showManage.shortName} onChange={e => setShowManage({ ...showManage, shortName: e.target.value })} /></div>
+                <div className="form-group"><label className="form-label">EXPIRY DATE</label><input type="date" className="input" value={showManage.expiresAt} onChange={e => setShowManage({ ...showManage, expiresAt: e.target.value })} /></div>
                 <div className="form-group"><label className="form-label">ORG ADMIN EMAIL</label><input className="input bg-s2 text-t3" disabled value={showManage.email} /></div>
-                
+
                 <div className="flex justify-end gap-2 mt-4">
-                  <button className="btn" onClick={() => setShowManage(null)}>Cancel</button>
+                  <button className="btn btn-cancel" onClick={() => setShowManage(null)}>Cancel</button>
                   <button className="btn bp" onClick={handleManageUpdate}>Update Details</button>
                 </div>
               </div>
@@ -297,7 +297,7 @@ export default function OwnerOrgs() {
                     );
                   })}
                 </div>
-                
+
                 <div className="flex justify-end gap-2 mt-4" style={{ gridColumn: 'span 2' }}>
                   <button className="btn bg" onClick={() => setShowManage(null)}>Done</button>
                 </div>

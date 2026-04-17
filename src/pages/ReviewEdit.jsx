@@ -95,7 +95,8 @@ export default function ReviewEdit() {
       source: isBatch ? 'Batch Job' : 'Upload',
       status: 'Exported',
       batchId: isBatch ? batchId : undefined,
-      orgId
+      orgId,
+      userId: currentUser?.id
     });
     
     if (isBatch) {

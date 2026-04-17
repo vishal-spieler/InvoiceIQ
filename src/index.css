@@ -237,6 +237,11 @@ button {
   font-size: 12px;
 }
 
+.btn-cancel {
+  background-color: var(--red);
+  color: #fff;
+}
+
 /* Button Variants */
 .bp {
   background-color: var(--accent);

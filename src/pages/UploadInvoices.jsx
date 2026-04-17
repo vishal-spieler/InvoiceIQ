@@ -4,7 +4,7 @@ import { useToast } from '../components/Toast';
 import { useInvoices } from '../context/InvoiceContext';
 import { useVendors } from '../context/VendorContext';
 import { useAuth } from '../context/AuthContext';
-import { processInvoice } from '../utils/extraction';
+import { processLocalExtraction, processBatchZip } from '../utils/aiExtractor';
 
 export default function UploadInvoices() {
   const [dragActive, setDragActive] = useState(false);
@@ -60,23 +60,18 @@ export default function UploadInvoices() {
     
     try {
       const isZip = file.type === 'application/zip' || file.type === 'application/x-zip-compressed' || file.name.endsWith('.zip');
-      const endpoint = isZip ? '/api/batch-extract' : '/api/extract';
-
-      const formData = new FormData();
-      formData.append('file', file);
-
-      console.log(`[FRONTEND] Uploading ${file.name} to ${endpoint}...`);
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        body: formData
-      });
-
-      if (!response.ok) {
-        const errText = await response.text();
-        throw new Error(`Backend Error: ${errText}`);
+      
+      let data;
+      if (isZip) {
+        console.log(`[FRONTEND] Processing batch zip locally...`);
+        const results = await processBatchZip(file);
+        data = { results };
+      } else {
+        console.log(`[FRONTEND] Processing single file locally...`);
+        const resultData = await processLocalExtraction(file, file.type);
+        data = resultData;
       }
       
-      const data = await response.json();
       console.log('[FRONTEND] AI Data Received:', data);
       
       if (isZip) {

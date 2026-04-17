@@ -10,7 +10,11 @@ export default function AllInvoices() {
   const { currentUser } = useAuth();
   const { vendors } = useVendors();
 
-  const scopedInvoices = currentUser?.role !== 'owner' ? invoices.filter(i => i.orgId === currentUser.orgId || !i.orgId) : invoices;
+  const scopedInvoices = React.useMemo(() => {
+    if (currentUser?.role === 'owner') return invoices;
+    if (currentUser?.role === 'employee') return invoices.filter(i => i.userId === currentUser.id);
+    return invoices.filter(i => i.orgId === currentUser?.orgId || !i.orgId);
+  }, [invoices, currentUser]);
 
   const [statusFilter, setStatusFilter] = useState('All');
   const [vendorFilter, setVendorFilter] = useState('All');
@@ -50,7 +54,7 @@ export default function AllInvoices() {
               <option key={vendor} value={vendor}>{vendor}</option>
             ))}
           </select>
-          <button className="btn bg">Export All</button>
+          <button className="btn bg" onClick={() => navigate('/export')}>Export All</button>
         </div>
       </div>
 

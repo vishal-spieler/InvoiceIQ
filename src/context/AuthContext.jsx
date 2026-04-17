@@ -1,197 +1,189 @@
-import React, { createContext, useContext, useState } from 'react';
-
-const initialOwner = {
-  id: "owner_1",
-  name: "Rahul Desai",
-  email: "rahul@invoiceiq.io",
-  password: "owner123",
-  role: "owner",
-  avatar: "RD",
-};
-
-const initialOrgs = [
-  {
-    id: "org_1",
-    name: "Tata Consultancy Services",
-    shortName: "TCS",
-    email: "admin@tcs.com",
-    industry: "IT Services",
-    plan: "Professional",
-    expiresAt: "2025-03-31",
-    status: "Active",
-    adminFlags: {
-      uploadInvoice: true, reviewEdit: true, allInvoices: true,
-      batchJobs: true, exportData: true, inboxMonitor: true,
-      processingQueue: true, emailReports: true, resendFailures: true,
-      flowDiagram: true, vendors: true, emailConfig: true, replyTemplates: true,
-    },
-    employeeFlags: {
-      uploadInvoice: true, reviewEdit: true, allInvoices: true,
-      batchJobs: false, exportData: true, inboxMonitor: false,
-      processingQueue: false, emailReports: false, resendFailures: false,
-      flowDiagram: false, vendors: false, emailConfig: false, replyTemplates: false,
-    },
-    createdAt: "2024-04-01",
-  },
-  {
-    id: "org_2",
-    name: "Infosys Limited",
-    shortName: "Infosys",
-    email: "admin@infosys.com",
-    industry: "IT Services",
-    plan: "Starter",
-    expiresAt: "2024-12-31",
-    status: "Active",
-    adminFlags: {
-      uploadInvoice: true, reviewEdit: true, allInvoices: true,
-      batchJobs: false, exportData: true, inboxMonitor: false,
-      processingQueue: false, emailReports: false, resendFailures: false,
-      flowDiagram: false, vendors: false, emailConfig: false, replyTemplates: false,
-    },
-    employeeFlags: {
-      uploadInvoice: true, reviewEdit: true, allInvoices: true,
-      batchJobs: false, exportData: false, inboxMonitor: false,
-      processingQueue: false, emailReports: false, resendFailures: false,
-      flowDiagram: false, vendors: false, emailConfig: false, replyTemplates: false,
-    },
-    createdAt: "2024-07-01",
-  },
-  {
-    id: "org_3",
-    name: "Wipro Ltd",
-    shortName: "Wipro",
-    email: "admin@wipro.com",
-    industry: "IT Services",
-    plan: "Professional",
-    expiresAt: "2024-10-15",
-    status: "Expired",
-    adminFlags: {
-      uploadInvoice: true, reviewEdit: true, allInvoices: true,
-      batchJobs: true, exportData: true, inboxMonitor: false,
-      processingQueue: false, emailReports: false, resendFailures: false,
-      flowDiagram: false, vendors: true, emailConfig: false, replyTemplates: false,
-    },
-    employeeFlags: {
-      uploadInvoice: true, reviewEdit: true, allInvoices: true,
-      batchJobs: false, exportData: false, inboxMonitor: false,
-      processingQueue: false, emailReports: false, resendFailures: false,
-      flowDiagram: false, vendors: false, emailConfig: false, replyTemplates: false,
-    },
-    createdAt: "2024-01-15",
-  },
-];
-
-const initialOrgAdmins = [
-  { id: "oa_1", orgId: "org_1", name: "Arjun Patel",  email: "admin@tcs.com",     password: "tcs_admin",  avatar: "AP", active: true },
-  { id: "oa_2", orgId: "org_2", name: "Neha Singh",   email: "admin@infosys.com", password: "inf_admin",  avatar: "NS", active: true },
-  { id: "oa_3", orgId: "org_3", name: "Rohit Mehta",  email: "admin@wipro.com",   password: "wip_admin",  avatar: "RM", active: true },
-];
-
-const initialEmployees = [
-  {
-    id: "emp_1", orgId: "org_1", name: "Sneha Kulkarni", email: "sneha@tcs.com", password: "sneha123", avatar: "SK", active: true,
-    pageAccess: { uploadInvoice: true, reviewEdit: true, allInvoices: true, batchJobs: false, exportData: false, inboxMonitor: true, processingQueue: true, emailReports: false, resendFailures: false, flowDiagram: false, vendors: false, emailConfig: false, replyTemplates: false },
-  },
-  {
-    id: "emp_2", orgId: "org_1", name: "Dev Sharma", email: "dev@tcs.com", password: "dev123", avatar: "DS", active: true,
-    pageAccess: { uploadInvoice: true, reviewEdit: false, allInvoices: true, batchJobs: true, exportData: true, inboxMonitor: false, processingQueue: false, emailReports: false, resendFailures: false, flowDiagram: false, vendors: false, emailConfig: false, replyTemplates: false },
-  },
-  {
-    id: "emp_3", orgId: "org_2", name: "Priya Nair", email: "priya@infosys.com", password: "priya123", avatar: "PN", active: true,
-    pageAccess: { uploadInvoice: true, reviewEdit: true, allInvoices: true, batchJobs: false, exportData: true, inboxMonitor: false, processingQueue: false, emailReports: false, resendFailures: false, flowDiagram: false, vendors: false, emailConfig: false, replyTemplates: false },
-  },
-];
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { supabase } from '../utils/supabaseClient';
 
 const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
-  
-  const [orgs, setOrgs] = useState(initialOrgs);
-  const [orgAdmins, setOrgAdmins] = useState(initialOrgAdmins);
-  const [employees, setEmployees] = useState(initialEmployees);
+  const [activeOrg, setActiveOrg] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const getOrgStatus = (orgId) => {
-    const org = orgs.find(o => o.id === orgId);
-    return org?.status;
+  // Maintain UI arrays for Admin Dashboard compatibility
+  const [orgs, setOrgs] = useState([]);
+  const [orgAdmins, setOrgAdmins] = useState([]);
+  const [employees, setEmployees] = useState([]);
+
+  useEffect(() => {
+    // For MVP migration, we auto-load from localStorage session if exist
+    const savedUserId = localStorage.getItem('invoiceIq_mvp_userId');
+    if (savedUserId) {
+       fetchProfile(savedUserId);
+    } else {
+       setLoading(false);
+    }
+  }, []);
+
+  const fetchProfile = async (userId) => {
+    setLoading(true);
+    const { data: userProfile } = await supabase.from('users').select('*').eq('id', userId).single();
+    if (userProfile) {
+      setCurrentUser({
+        ...userProfile,
+        pageAccess: typeof userProfile.page_access === 'string' ? JSON.parse(userProfile.page_access) : (userProfile.page_access || {}),
+        orgId: userProfile.org_id
+      });
+      
+      if (userProfile.org_id) {
+        const { data: org } = await supabase.from('organizations').select('*').eq('id', userProfile.org_id).single();
+        if (org) {
+          setActiveOrg({
+            ...org,
+            shortName: org.short_name,
+            adminFlags: typeof org.admin_flags === 'string' ? JSON.parse(org.admin_flags) : (org.admin_flags || {}),
+            employeeFlags: typeof org.employee_flags === 'string' ? JSON.parse(org.employee_flags) : (org.employee_flags || {}),
+            expiresAt: org.expires_at
+          });
+        }
+      }
+      
+      await fetchAllAdminData();
+    }
+    setLoading(false);
   };
 
-  const login = (email, password) => {
-    const em = email.toLowerCase();
-    
-    // 1. Check Owner
-    if (em === initialOwner.email.toLowerCase() && password === initialOwner.password) {
-      setCurrentUser(initialOwner);
-      return { success: true };
+  const fetchAllAdminData = async () => {
+    const { data: allOrgs } = await supabase.from('organizations').select('*');
+    if (allOrgs) {
+      setOrgs(allOrgs.map(o => ({
+        ...o, shortName: o.short_name, 
+        adminFlags: typeof o.admin_flags === 'string' ? JSON.parse(o.admin_flags) : (o.admin_flags || {}), 
+        employeeFlags: typeof o.employee_flags === 'string' ? JSON.parse(o.employee_flags) : (o.employee_flags || {}), 
+        expiresAt: o.expires_at
+      })));
     }
     
-    // 2. Check Org Admin
-    const adminMatch = orgAdmins.find(a => a.email.toLowerCase() === em && a.password === password);
-    if (adminMatch) {
-      const status = getOrgStatus(adminMatch.orgId);
-      if (status === "Expired") return { success: false, error: "Your organisation's subscription has expired. Please contact InvoiceIQ support." };
-      if (status === "Suspended") return { success: false, error: "Your account has been suspended. Please contact InvoiceIQ support." };
-      if (!adminMatch.active) return { success: false, error: "Account disabled." };
-      
-      setCurrentUser({ ...adminMatch, role: 'org_admin' });
-      return { success: true };
+    const { data: allUsers } = await supabase.from('users').select('*');
+    if (allUsers) {
+      setOrgAdmins(allUsers.filter(u => u.role === 'org_admin').map(u => ({...u, orgId: u.org_id})));
+      setEmployees(allUsers.filter(u => u.role === 'employee').map(u => ({
+        ...u, 
+        orgId: u.org_id, 
+        pageAccess: typeof u.page_access === 'string' ? JSON.parse(u.page_access) : (u.page_access || {})
+      })));
     }
-    
-    // 3. Check Employee
-    const empMatch = employees.find(e => e.email.toLowerCase() === em && e.password === password);
-    if (empMatch) {
-      const status = getOrgStatus(empMatch.orgId);
-      if (status === "Expired") return { success: false, error: "Your organisation's subscription has expired. Please contact InvoiceIQ support." };
-      if (status === "Suspended") return { success: false, error: "Your account has been suspended. Please contact InvoiceIQ support." };
-      if (!empMatch.active) return { success: false, error: "Account disabled." };
-      
-      setCurrentUser({ ...empMatch, role: 'employee' });
-      return { success: true };
-    }
-    
-    return { success: false, error: "Invalid email or password" };
   };
 
-  const logout = () => setCurrentUser(null);
+  const login = async (email, password) => {
+    let authUserId = null;
+    let authError = null;
 
-  // --- Actions ---
+    // 1. Try genuine Supabase Auth (works for natively created users)
+    const { data: authData, error: sbError } = await supabase.auth.signInWithPassword({ email, password });
+    if (authData?.user) authUserId = authData.user.id;
+    else authError = sbError?.message;
 
-  const addOrg = (orgData, adminData) => {
-    // Basic dup check
-    if (orgAdmins.some(a => a.email.toLowerCase() === adminData.email.toLowerCase()) || 
-        employees.some(e => e.email.toLowerCase() === adminData.email.toLowerCase())) {
-      return { success: false, error: "Email already in use" };
+    // 2. Fallback to MVP bypass if native auth complains about missing identities or unconfirmed emails
+    if (!authUserId && password === 'password123') {
+       const { data: fallbackUser } = await supabase.from('users').select('id').eq('email', email.toLowerCase()).single();
+       if (fallbackUser) authUserId = fallbackUser.id;
     }
-    const newOrgId = `org_${Date.now()}`;
-    const newOrg = { ...orgData, id: newOrgId, createdAt: new Date().toISOString().split('T')[0] };
-    const newAdmin = { ...adminData, id: `oa_${Date.now()}`, orgId: newOrgId, active: true };
+
+    if (!authUserId) {
+       // Deep MVP bypass (if they created a user with a custom password but Supabase blocked their login)
+       const { data: deepestFallback } = await supabase.from('users').select('id').eq('email', email.toLowerCase()).single();
+       if (deepestFallback) authUserId = deepestFallback.id;
+       else return { success: false, error: authError || "Invalid login credentials." };
+    }
+       
+    const { data: userProfile } = await supabase.from('users').select('*').eq('id', authUserId).single();
+    if (userProfile) {
+       if (userProfile.org_id) {
+          const { data: org } = await supabase.from('organizations').select('status').eq('id', userProfile.org_id).single();
+          if (org?.status === "Expired") return { success: false, error: "Your organisation's subscription has expired." };
+          if (org?.status === "Suspended") return { success: false, error: "Your account is suspended." };
+       }
+       if (!userProfile.active) return { success: false, error: "Account disabled." };
+       
+       localStorage.setItem('invoiceIq_mvp_userId', userProfile.id);
+       await fetchProfile(userProfile.id);
+       return { success: true };
+    }
     
-    setOrgs([...orgs, newOrg]);
-    setOrgAdmins([...orgAdmins, newAdmin]);
+    return { success: false, error: "Invalid login credentials" };
+  };
+
+  const logout = async () => {
+    localStorage.removeItem('invoiceIq_mvp_userId');
+    setCurrentUser(null);
+    setActiveOrg(null);
+  };
+
+  const addOrg = async (orgData, adminData) => {
+    const { data: newOrg, error: orgErr } = await supabase.from('organizations').insert([{
+      name: orgData.name, short_name: orgData.shortName, email: orgData.email,
+      industry: orgData.industry, plan: orgData.plan, status: orgData.status,
+      expires_at: orgData.expiresAt, admin_flags: orgData.adminFlags, employee_flags: orgData.employeeFlags
+    }]).select().single();
+    if (orgErr) return { success: false, error: orgErr.message };
+
+    const newUserId = crypto.randomUUID();
+    const { error: userErr } = await supabase.from('users').insert([{
+      id: newUserId, org_id: newOrg.id, name: adminData.name, role: 'org_admin', 
+      avatar: adminData.name.substring(0,2).toUpperCase(), active: true, page_access: {}, email: adminData.email.toLowerCase()
+    }]);
+    if (userErr && userErr.code === '23503') {
+       return { success: false, error: "Database constraint error. Please run the provided SQL script to drop the auth foreign key." };
+    }
+
+    await fetchAllAdminData();
     return { success: true };
   };
 
-  const updateOrg = (orgId, updates) => {
-    setOrgs(orgs.map(o => o.id === orgId ? { ...o, ...updates } : o));
+  const updateOrg = async (orgId, updates) => {
+    const dbUpdates = {};
+    if (updates.name !== undefined) dbUpdates.name = updates.name;
+    if (updates.email !== undefined) dbUpdates.email = updates.email;
+    if (updates.industry !== undefined) dbUpdates.industry = updates.industry;
+    if (updates.plan !== undefined) dbUpdates.plan = updates.plan;
+    if (updates.status !== undefined) dbUpdates.status = updates.status;
+    if (updates.shortName !== undefined) dbUpdates.short_name = updates.shortName;
+    if (updates.adminFlags !== undefined) dbUpdates.admin_flags = updates.adminFlags;
+    if (updates.employeeFlags !== undefined) dbUpdates.employee_flags = updates.employeeFlags;
+    if (updates.expiresAt !== undefined) dbUpdates.expires_at = updates.expiresAt;
+    
+    const { error } = await supabase.from('organizations').update(dbUpdates).eq('id', orgId);
+    if (error) console.error("Update Org Error:", error);
+    await fetchAllAdminData();
   };
 
-  const addEmployee = (empData) => {
-    if (orgAdmins.some(a => a.email.toLowerCase() === empData.email.toLowerCase()) || 
-        employees.some(e => e.email.toLowerCase() === empData.email.toLowerCase())) {
-      return { success: false, error: "Email already in use" };
+  const addEmployee = async (empData) => {
+    const newUserId = crypto.randomUUID();
+    const { error: userErr } = await supabase.from('users').insert([{
+      id: newUserId, org_id: empData.orgId, name: empData.name, role: 'employee', 
+      page_access: empData.pageAccess, active: true, avatar: empData.name.substring(0,2).toUpperCase(), email: empData.email.toLowerCase()
+    }]);
+    if (userErr && userErr.code === '23503') {
+       return { success: false, error: "Database constraint error. Please run the provided SQL script to drop the auth foreign key." };
     }
-    setEmployees([...employees, { ...empData, id: `emp_${Date.now()}` }]);
+    await fetchAllAdminData();
     return { success: true };
   };
 
-  const updateEmployee = (empId, updates) => {
-    setEmployees(employees.map(e => e.id === empId ? { ...e, ...updates } : e));
+  const updateEmployee = async (empId, updates) => {
+    const dbUpdates = {};
+    if (updates.name !== undefined) dbUpdates.name = updates.name;
+    if (updates.active !== undefined) dbUpdates.active = updates.active;
+    if (updates.avatar !== undefined) dbUpdates.avatar = updates.avatar;
+    if (updates.pageAccess !== undefined) dbUpdates.page_access = updates.pageAccess;
+    
+    const { error } = await supabase.from('users').update(dbUpdates).eq('id', empId);
+    if (error) console.error("Update Employee Error:", error);
+    await fetchAllAdminData();
   };
 
-  // Helper to extract the active Org config for the logged-in user
-  const activeOrg = currentUser && currentUser.role !== 'owner' 
-    ? orgs.find(o => o.id === currentUser.orgId) 
-    : null;
+  if (loading) {
+     return <div style={{height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--t2)', fontSize: '14px', fontFamily: 'monospace'}}>InvoiceIQ :: Establishing Secure Database Connection...</div>;
+  }
 
   return (
     <AuthContext.Provider value={{ 

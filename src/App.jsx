@@ -18,6 +18,7 @@ import EmailConfig from './pages/EmailConfig';
 import ReplyTemplates from './pages/ReplyTemplates';
 import Settings from './pages/Settings';
 import Login from './pages/Login';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 // New Owner & Team Pages
 import OwnerOrgs from './pages/OwnerOrgs';
@@ -123,6 +124,9 @@ function App() {
             <Route path="/settings" element={<Settings />} />
           </>
         )}
+        
+        {/* Catch-all fallback */}
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Route>
     </Routes>
   );
