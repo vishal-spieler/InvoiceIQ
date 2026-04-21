@@ -64,7 +64,7 @@ CREATE TABLE public.invoices (
     total NUMERIC(15, 2),
     gst JSONB DEFAULT '{}'::jsonb,
     confidence NUMERIC(5, 2),
-    status TEXT DEFAULT 'Pending' CHECK (status IN ('Pending', 'Exported', 'Failed', 'Needs Review')),
+    status TEXT DEFAULT 'Pending' CHECK (status IN ('Pending', 'Approved', 'Exported', 'Rejected', 'Failed', 'Needs Review')),
     source TEXT DEFAULT 'Upload' CHECK (source IN ('Upload', 'Batch Job', 'Email')),
     batch_id UUID REFERENCES public.batch_jobs(id) ON DELETE SET NULL,
     preview_base64 TEXT,

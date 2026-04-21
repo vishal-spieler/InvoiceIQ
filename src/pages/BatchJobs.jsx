@@ -8,13 +8,13 @@ export default function BatchJobs() {
   const { batchJobs } = useInvoices();
   const { currentUser } = useAuth();
 
-  const scopedBatchJobs = currentUser?.role !== 'owner' 
+  const scopedBatchJobs = currentUser?.role !== 'owner'
     ? batchJobs.filter(j => j.orgId === currentUser.orgId)
     : batchJobs;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      
+
       {/* Page Context Row */}
       <div className="flex items-center justify-between">
         <div style={{ color: 'var(--t2)', fontSize: '13px' }}>
@@ -27,13 +27,13 @@ export default function BatchJobs() {
 
       {/* Grid Status Cards */}
       <div className="grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px' }}>
-        
+
         {scopedBatchJobs.slice(0, 3).map(job => {
           const isError = job.status === 'Errors';
           const isDone = job.status === 'Done';
           const badgeClass = isError ? 'b-e' : isDone ? 'b-s' : 'b-i';
           const borderClass = isError ? 'var(--red)' : isDone ? 'var(--green)' : 'var(--accent)';
-          
+
           return (
             <div key={job.id} className="card" style={{ borderLeft: `3px solid ${borderClass}` }}>
               <div className="flex items-center justify-between" style={{ marginBottom: '16px' }}>
@@ -54,8 +54,8 @@ export default function BatchJobs() {
                 </div>
               </div>
               <div style={{ marginTop: '16px', borderTop: '1px solid var(--b)', paddingTop: '12px', display: 'flex', justifyContent: 'flex-end' }}>
-                <button 
-                  className="btn bg btn-sm" 
+                <button
+                  className="btn bg btn-sm"
                   onClick={() => navigate('/review', { state: { isBatch: true, batchId: job.id, batchResults: job.results, vendor: job.vendor } })}
                 >
                   Review Batch →

@@ -1,0 +1,7 @@
+  feature/add-support-to-upload-png-or-image-to-extract-data
+  feature/initial-comment
+* main
+  remotes/origin/HEAD -> origin/main
+  remotes/origin/feature/add-support-to-upload-png-or-image-to-extract-data
+  remotes/origin/feature/initial-comment
+  remotes/origin/main

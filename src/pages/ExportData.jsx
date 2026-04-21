@@ -11,10 +11,15 @@ export default function ExportData() {
   const { vendors } = useVendors();
 
   const scopedInvoices = React.useMemo(() => {
-    if (currentUser?.role === 'owner') return invoices;
-    if (currentUser?.role === 'employee') return invoices.filter(i => i.userId === currentUser.id);
-    return invoices.filter(i => i.orgId === currentUser?.orgId || !i.orgId);
-  }, [invoices, currentUser]);
+    let scoped = invoices.filter(i => i.orgId === currentUser?.orgId);
+    
+    if (currentUser?.role === 'vendor' || currentUser?.vendorId) {
+      const vObj = vendors.find(v => v.id === currentUser.vendorId);
+      const targetVendorName = vObj ? vObj.name : currentUser.name;
+      scoped = scoped.filter(i => i.vendorId === currentUser.vendorId || i.vendor === targetVendorName);
+    }
+    return scoped;
+  }, [invoices, currentUser, vendors]);
 
   const [fromDate, setFromDate] = useState('2024-03-01');
   const [toDate, setToDate] = useState(new Date().toISOString().split('T')[0]);
@@ -29,17 +34,17 @@ export default function ExportData() {
     const invDate = new Date(recordDateStr);
     const fromD = new Date(fromDate);
     const toD = new Date(toDate);
-    
+
     // Normalize time to compare cleanly
-    fromD.setHours(0,0,0,0);
-    toD.setHours(23,59,59,999);
-    
+    fromD.setHours(0, 0, 0, 0);
+    toD.setHours(23, 59, 59, 999);
+
     // If invalid date or null, we just include it
     const isWithinDate = !recordDateStr || isNaN(invDate.getTime()) ? true : (invDate >= fromD && invDate <= toD);
     const matchVendor = vendorFilter === 'All Vendors' || inv.vendor === vendorFilter;
-    const matchSource = sourceFilter === 'All Sources' || 
-                        (sourceFilter === 'Email only' && inv.source === 'Email') || 
-                        (sourceFilter === 'Upload only' && inv.source === 'Upload');
+    const matchSource = sourceFilter === 'All Sources' ||
+      (sourceFilter === 'Email only' && inv.source === 'Email') ||
+      (sourceFilter === 'Upload only' && inv.source === 'Upload');
 
     return isWithinDate && matchVendor && matchSource;
   });
@@ -55,7 +60,7 @@ export default function ExportData() {
       'Currency', 'Subtotal (₹)', 'CGST Rate (%)', 'CGST Amount (₹)', 'SGST Rate (%)', 'SGST Amount (₹)',
       'IGST Rate (%)', 'IGST Amount (₹)', 'Total GST (₹)', 'Total Amount (₹)', 'Total Override Note', 'Bank Account', 'IFSC Code', 'Extracted At'
     ];
-    
+
     // Fallback if gst isn't present on old invoices
     const safeGst = (inv) => inv.gst || { cgst_rate: 0, cgst_amount: 0, sgst_rate: 0, sgst_amount: 0, igst_rate: 0, igst_amount: 0, total_gst: 0 };
 
@@ -100,10 +105,10 @@ export default function ExportData() {
     const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
-    
+
     link.href = url;
     link.setAttribute('download', `invoices_export_${new Date().toISOString().split('T')[0]}.csv`);
-    
+
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -118,14 +123,14 @@ export default function ExportData() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      
+
       {/* Page Context */}
       <div style={{ color: 'var(--t2)', fontSize: '13px' }}>
         Download as Excel or push to PostgreSQL database.
       </div>
 
       <div className="grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-        
+
         {/* Left Card - Excel Export */}
         <div className="card flex col justify-between">
           <div>
@@ -189,7 +194,7 @@ export default function ExportData() {
               </div>
             </div>
           </div>
-          
+
           <button className="btn bs2 w-full" style={{ padding: '12px' }} onClick={handleExcelExport}>
             Download Excel →
           </button>

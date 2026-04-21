@@ -11,15 +11,15 @@ export default function ReviewEdit() {
   const { addInvoice } = useInvoices();
   const { currentUser } = useAuth();
   const [showDebug, setShowDebug] = useState(false);
-  
+
   const { isBatch, batchId, batchResults, vendor: initialVendor } = location.state || {};
   const [currentIndex, setCurrentIndex] = useState(0);
 
   const currentItem = isBatch && batchResults ? batchResults[currentIndex] : location.state;
   const { filename = 'INV-20240311', previewUrl, fileType, extractedData, vendor, orgId } = currentItem || {};
-  
+
   const currentVendor = isBatch ? initialVendor : vendor;
-  
+
   console.log('[REVIEW] Active Item:', { filename, hasData: !!extractedData, isBatch, currentIndex });
 
   const generateData = () => {
@@ -69,10 +69,10 @@ export default function ReviewEdit() {
     }));
   };
 
-  const parsedSub = parseFloat(formData.subtotal?.replace(/,/g, '') || 0);
+  const parsedSub = parseFloat(String(formData.subtotal || '').replace(/,/g, '') || 0);
   const parsedTax = parseFloat(formData.gst?.total_gst || formData.totalTax || 0);
-  const parsedTotal = parseFloat(formData.total?.replace(/,/g, '') || 0);
-  
+  const parsedTotal = parseFloat(String(formData.total || '').replace(/,/g, '') || 0);
+
   const hasMathMismatch = Math.round(parsedSub + parsedTax) !== Math.round(parsedTotal);
 
   const handleGSTChange = (field, value) => {
@@ -86,6 +86,33 @@ export default function ReviewEdit() {
 
   const hasGstConflict = formData.gst.igst_amount > 0 && (formData.gst.cgst_amount > 0 || formData.gst.sgst_amount > 0);
 
+  const handleReject = () => {
+    addInvoice({
+      ...formData,
+      filename,
+      fileType: fileType || 'application/pdf',
+      previewUrl,
+      source: isBatch ? 'Batch Job' : 'Upload',
+      status: 'Rejected',
+      batchId: isBatch ? batchId : undefined,
+      orgId,
+      userId: currentUser?.id
+    });
+
+    if (isBatch) {
+      if (currentIndex < batchResults.length - 1) {
+        toast(`⚠ Marked as Rejected! Loading next... (${currentIndex + 1}/${batchResults.length})`, 'amber');
+        setCurrentIndex(currentIndex + 1);
+      } else {
+        toast(`✅ Batch Review Complete!`, 'green');
+        navigate('/batch');
+      }
+    } else {
+      toast('⚠ Invoice marked as rejected', 'amber');
+      navigate('/invoices');
+    }
+  };
+
   const handleApprove = () => {
     addInvoice({
       ...formData,
@@ -93,12 +120,12 @@ export default function ReviewEdit() {
       fileType: fileType || 'application/pdf',
       previewUrl,
       source: isBatch ? 'Batch Job' : 'Upload',
-      status: 'Exported',
+      status: 'Approved',
       batchId: isBatch ? batchId : undefined,
       orgId,
       userId: currentUser?.id
     });
-    
+
     if (isBatch) {
       if (currentIndex < batchResults.length - 1) {
         toast(`✅ Saved! Loading next invoice... (${currentIndex + 1}/${batchResults.length})`, 'green');
@@ -115,7 +142,7 @@ export default function ReviewEdit() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', marginTop: '-22px' }}>
-      
+
       {/* Header local to component space to push split layout appropriately */}
       <div className="flex items-center justify-between" style={{ padding: '16px 0', borderBottom: '1px solid var(--b)', marginBottom: '16px' }}>
         <div>
@@ -130,31 +157,43 @@ export default function ReviewEdit() {
             </div>
           )}
           <div className="flex items-center gap-1">
-            <button 
-              className="btn bg btn-sm" 
-              disabled={isBatch && currentIndex === 0} 
+            <button
+              className="btn bg btn-sm"
+              disabled={isBatch && currentIndex === 0}
               onClick={() => setCurrentIndex(Math.max(0, currentIndex - 1))}
             >← Prev</button>
-            <button 
-              className="btn bg btn-sm" 
-              disabled={isBatch && currentIndex === batchResults.length - 1} 
+            <button
+              className="btn bg btn-sm"
+              disabled={isBatch && currentIndex === batchResults.length - 1}
               onClick={() => setCurrentIndex(Math.min(batchResults.length - 1, currentIndex + 1))}
             >Next →</button>
           </div>
-          <button className="btn bd btn-sm">Reject</button>
-          <button className="btn bs2 btn-sm" onClick={handleApprove}>Approve & Export</button>
+          <button 
+            className="btn bd btn-sm" 
+            onClick={handleReject}
+            disabled={data.status === 'Rejected'}
+          >
+            {data.status === 'Rejected' ? 'Rejected' : 'Reject'}
+          </button>
+          <button 
+            className="btn bs2 btn-sm" 
+            onClick={handleApprove}
+            disabled={data.status === 'Approved' || data.status === 'Exported'}
+          >
+            {data.status === 'Approved' || data.status === 'Exported' ? 'Approved' : 'Approve & Export'}
+          </button>
         </div>
       </div>
 
       {/* Split Layout */}
-      <div className="grid" style={{ 
-        flex: 1, 
-        gridTemplateColumns: '1fr 1fr', 
-        gap: '24px', 
+      <div className="grid" style={{
+        flex: 1,
+        gridTemplateColumns: '1fr 1fr',
+        gap: '24px',
         height: 'calc(100vh - 168px)',
         minHeight: '0'
       }}>
-        
+
         {/* Left Panel - PDF Viewer */}
         <div className="flex col card" style={{ padding: 0, overflow: 'hidden' }}>
           <div className="flex items-center justify-between" style={{ padding: '12px 16px', borderBottom: '1px solid var(--b)', backgroundColor: 'var(--surface)' }}>
@@ -165,21 +204,26 @@ export default function ReviewEdit() {
             </div>
             <button className="btn bg btn-xs">Zoom</button>
           </div>
-          
+
           <div className="flex-1 overflow-y-auto" style={{ padding: '24px', backgroundColor: '#e8eaf0', display: 'flex', justifyContent: 'center' }}>
             {previewUrl ? (
-              <div style={{ width: '100%', height: '100%', display: 'flex', justifyContent: 'center' }}>
-                {fileType?.includes('pdf') ? (
-                  <embed src={previewUrl} type="application/pdf" width="100%" height="800px" style={{ borderRadius: '4px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
-                ) : (
-                  <img src={previewUrl} alt="Uploaded Invoice" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: '4px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', backgroundColor: '#fff' }} />
-                )}
-              </div>
+              (() => {
+                const isPdf = previewUrl?.startsWith('data:application/pdf') || (fileType?.includes('pdf') && !previewUrl?.startsWith('data:image/'));
+                return (
+                  <div style={{ width: '100%', height: '100%', display: 'flex', justifyContent: 'center' }}>
+                    {isPdf ? (
+                      <embed src={previewUrl} type="application/pdf" width="100%" height="800px" style={{ borderRadius: '4px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
+                    ) : (
+                      <img src={previewUrl} alt="Uploaded Invoice" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: '4px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', backgroundColor: '#fff' }} />
+                    )}
+                  </div>
+                );
+              })()
             ) : (
-              <div style={{ 
-                backgroundColor: '#fff', 
-                padding: '40px', 
-                borderRadius: '4px', 
+              <div style={{
+                backgroundColor: '#fff',
+                padding: '40px',
+                borderRadius: '4px',
                 boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
                 display: 'flex',
                 flexDirection: 'column',
@@ -201,13 +245,13 @@ export default function ReviewEdit() {
 
         {/* Right Panel - Extracted Fields */}
         <div className="flex col card" style={{ padding: 0, overflow: 'hidden' }}>
-          
+
           <div className="flex items-center justify-between" style={{ padding: '16px 20px', borderBottom: '1px solid var(--b)' }}>
             <div>
               <h2 style={{ fontSize: '16px', marginBottom: '4px' }}>Extracted Fields</h2>
               <div style={{ fontSize: '12px', color: 'var(--amber)' }}>3 fields need review</div>
             </div>
-            
+
             {/* SVG Confidence Ring */}
             <div style={{ position: 'relative', width: '48px', height: '48px' }}>
               <svg viewBox="0 0 36 36" style={{ width: '100%', height: '100%' }}>
@@ -222,13 +266,13 @@ export default function ReviewEdit() {
 
           <div className="flex-1 overflow-y-auto" style={{ padding: '20px' }}>
             <div className="flex col gap-4">
-              
+
               <div className="form-group">
                 <div className="flex items-center justify-between">
                   <label className="form-label">Invoice Number</label>
                   <span className={`text-xs ${data.invoiceNo ? 'text-green' : 'text-red'} font-bold`}>{data.invoiceNo ? 'FOUND' : 'MISSING'}</span>
                 </div>
-                <input className="input" value={formData.invoiceNo} onChange={(e) => setFormData({...formData, invoiceNo: e.target.value})} />
+                <input className="input" value={formData.invoiceNo} onChange={(e) => setFormData({ ...formData, invoiceNo: e.target.value })} />
               </div>
 
               <div className="form-group">
@@ -236,21 +280,21 @@ export default function ReviewEdit() {
                   <label className="form-label">Invoice Date</label>
                   <span className={`text-xs ${formData.date ? 'text-green' : 'text-amber'} font-bold`}>{formData.date ? 'FOUND' : 'MISSING'}</span>
                 </div>
-                <input className="input" value={formData.date} onChange={(e) => setFormData({...formData, date: e.target.value})} style={{ borderColor: formData.date ? 'var(--b2)' : 'var(--amber)' }} />
+                <input className="input" value={formData.date} onChange={(e) => setFormData({ ...formData, date: e.target.value })} style={{ borderColor: formData.date ? 'var(--b2)' : 'var(--amber)' }} />
               </div>
 
               <div className="form-group">
                 <div className="flex items-center justify-between">
                   <label className="form-label">Vendor Name</label>
                 </div>
-                <input className="input" value={formData.vendor} onChange={(e) => setFormData({...formData, vendor: e.target.value})} />
+                <input className="input" value={formData.vendor} onChange={(e) => setFormData({ ...formData, vendor: e.target.value })} />
               </div>
 
               <div className="form-group">
                 <div className="flex items-center justify-between">
                   <label className="form-label">Vendor GST</label>
                 </div>
-                <input className="input" value={formData.gstin} onChange={(e) => setFormData({...formData, gstin: e.target.value})} />
+                <input className="input" value={formData.gstin} onChange={(e) => setFormData({ ...formData, gstin: e.target.value })} />
               </div>
 
               {formData.poNumber && (
@@ -259,7 +303,7 @@ export default function ReviewEdit() {
                     <label className="form-label">PO Number</label>
                     <span className="text-xs text-amber font-bold">78%</span>
                   </div>
-                  <input className="input" value={formData.poNumber} onChange={(e) => setFormData({...formData, poNumber: e.target.value})} style={{ borderColor: 'var(--amber)' }} />
+                  <input className="input" value={formData.poNumber} onChange={(e) => setFormData({ ...formData, poNumber: e.target.value })} style={{ borderColor: 'var(--amber)' }} />
                 </div>
               )}
 
@@ -275,7 +319,7 @@ export default function ReviewEdit() {
                   <label className="form-label">Subtotal</label>
                   <span className={`text-xs ${formData.subtotal ? 'text-green' : 'text-t3'} font-bold`}>{formData.subtotal ? 'FOUND' : 'AUTO-CALC'}</span>
                 </div>
-                <input className="input" value={formData.subtotal} onChange={e => setFormData({...formData, subtotal: e.target.value})} />
+                <input className="input" value={formData.subtotal} onChange={e => setFormData({ ...formData, subtotal: e.target.value })} />
               </div>
 
               <div className="form-group">
@@ -362,11 +406,11 @@ export default function ReviewEdit() {
               )}
 
               <div style={{ height: '1px', backgroundColor: 'var(--b)', margin: '16px 0 8px' }}></div>
-              
+
               <h3 style={{ fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t2)' }}>
                 Line Items ({formData.lineItems?.length || 0})
               </h3>
-              
+
               <div style={{ backgroundColor: 'var(--s2)', borderRadius: 'var(--rs)', overflow: 'hidden', border: '1px solid var(--b)' }}>
                 <table style={{ minWidth: '100%', tableLayout: 'fixed' }}>
                   <thead>
@@ -412,19 +456,19 @@ export default function ReviewEdit() {
 
               {/* Debug Section */}
               <div style={{ marginTop: '24px', borderTop: '1px solid var(--b)', paddingTop: '16px' }}>
-                <button 
-                  className="btn bg btn-xs" 
+                <button
+                  className="btn bg btn-xs"
                   onClick={() => setShowDebug(!showDebug)}
                   style={{ opacity: 0.5 }}
                 >
                   {showDebug ? 'Hide Diagnostics' : 'Show OCR Diagnostics'}
                 </button>
-                
+
                 {showDebug && (
                   <div style={{ marginTop: '12px', backgroundColor: '#000', padding: '12px', borderRadius: '4px', fontSize: '11px', color: '#0f0', fontFamily: 'monospace', overflowX: 'auto' }}>
                     <div style={{ marginBottom: '8px', color: '#fff', borderBottom: '1px solid #333', paddingBottom: '4px' }}>RAW OCR TEXT:</div>
                     <pre style={{ whiteSpace: 'pre-wrap', marginBottom: '16px' }}>{extractedData?.rawText || 'No raw text available.'}</pre>
-                    
+
                     <div style={{ marginBottom: '8px', color: '#fff', borderBottom: '1px solid #333', paddingBottom: '4px' }}>PARSED JSON:</div>
                     <pre>{JSON.stringify(data, null, 2)}</pre>
                   </div>

@@ -59,9 +59,15 @@ const NavItem = ({ to, icon, label, badge, badgeColor = 'b-n' }) => {
 };
 
 import { useAuth } from '../context/AuthContext';
+import { useInvoices } from '../context/InvoiceContext';
 
 export default function Sidebar() {
   const { currentUser, logout, activeOrg } = useAuth();
+  const { invoices } = useInvoices();
+
+  const orgInvoices = invoices.filter(i => i.orgId === currentUser?.orgId);
+  const pendingCount = orgInvoices.filter(i => i.status === 'Pending' || i.status === 'Needs Review').length;
+  const totalCount = orgInvoices.length;
 
   const adminFlags = activeOrg?.adminFlags || {};
   const employeeFlags = activeOrg?.employeeFlags || {};
@@ -111,8 +117,8 @@ export default function Sidebar() {
         {hasCore && (
           <NavSection title="UPLOAD & PROCESS">
             {canSee('uploadInvoice') && <NavItem to="/upload" icon={<Upload size={16} />} label="Upload Invoice" />}
-            {canSee('reviewEdit') && <NavItem to="/review" icon={<Search size={16} />} label="Review & Edit" badge="3" badgeColor="b-w" />}
-            {canSee('allInvoices') && <NavItem to="/invoices" icon={<FileText size={16} />} label="All Invoices" badge={147} badgeColor="b-i" />}
+            {canSee('reviewEdit') && <NavItem to="/review" icon={<Search size={16} />} label="Review & Edit" badge={pendingCount > 0 ? pendingCount : null} badgeColor="b-w" />}
+            {canSee('allInvoices') && <NavItem to="/invoices" icon={<FileText size={16} />} label="All Invoices" badge={totalCount > 0 ? totalCount : null} badgeColor="b-i" />}
             {canSee('batchJobs') && <NavItem to="/batch" icon={<Layers size={16} />} label="Batch Jobs" />}
             {canSee('exportData') && <NavItem to="/export" icon={<Download size={16} />} label="Export Data" />}
           </NavSection>

@@ -7,13 +7,13 @@ export function useFeatureFlags() {
 }
 
 const DEFAULT_FLAGS = {
-  inboxMonitor:      true,
-  processingQueue:   true,
-  emailReports:      false,
-  resendFailures:    false,
-  flowDiagram:       false,
-  emailConfig:       true,
-  replyTemplates:    true,
+  inboxMonitor: true,
+  processingQueue: true,
+  emailReports: false,
+  resendFailures: false,
+  flowDiagram: false,
+  emailConfig: true,
+  replyTemplates: true,
 };
 
 export function FeatureFlagProvider({ children }) {
