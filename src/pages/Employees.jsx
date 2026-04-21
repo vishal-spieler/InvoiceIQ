@@ -44,7 +44,7 @@ export default function Employees() {
     setMEmail(emp ? emp.email : '');
     setMPass(emp ? emp.password : '');
     setMActive(emp ? emp.active : true);
-    
+
     if (emp) {
       setMAccess({ ...emp.pageAccess });
     } else {
@@ -52,7 +52,7 @@ export default function Employees() {
       availablePages.forEach(p => defaults[p.key] = true);
       setMAccess(defaults);
     }
-    
+
     setShowModal(true);
   };
 

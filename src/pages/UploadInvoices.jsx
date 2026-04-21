@@ -16,7 +16,7 @@ export default function UploadInvoices() {
   const { vendors } = useVendors();
   const { currentUser } = useAuth();
   const fileInputRef = useRef(null);
-  
+
   const isVendor = currentUser?.role === 'vendor';
   const [selectedVendor, setSelectedVendor] = useState('');
   const [vendorError, setVendorError] = useState(false);
@@ -57,10 +57,10 @@ export default function UploadInvoices() {
     // Clear previous extraction data to prevent mock-bleed
     setUploadedFile({ name: file.name, type: file.type, url: previewUrl, extractedData: null, isBatch: false, batchResults: [] });
     setFileState('processing');
-    
+
     try {
       const isZip = file.type === 'application/zip' || file.type === 'application/x-zip-compressed' || file.name.endsWith('.zip');
-      
+
       let data;
       if (isZip) {
         console.log(`[FRONTEND] Processing batch zip locally...`);
@@ -71,29 +71,29 @@ export default function UploadInvoices() {
         const resultData = await processLocalExtraction(file, file.type);
         data = resultData;
       }
-      
+
       console.log('[FRONTEND] AI Data Received:', data);
-      
+
       if (isZip) {
         setUploadedFile(prev => ({ ...prev, isBatch: true, batchResults: data.results }));
-        
+
         let successCount = 0;
         let failCount = 0;
         if (data.results && Array.isArray(data.results)) {
-           data.results.forEach(r => r.status === 'success' ? successCount++ : failCount++);
+          data.results.forEach(r => r.status === 'success' ? successCount++ : failCount++);
         }
-        
+
         addBatchJob({
-           filename: file.name,
-           vendor: selectedVendor,
-           orgId: currentUser?.orgId,
-           results: data.results,
-           successCount,
-           failCount,
-           totalFiles: data.results ? data.results.length : 0,
-           status: failCount > 0 ? 'Errors' : 'Done'
+          filename: file.name,
+          vendor: selectedVendor,
+          orgId: currentUser?.orgId,
+          results: data.results,
+          successCount,
+          failCount,
+          totalFiles: data.results ? data.results.length : 0,
+          status: failCount > 0 ? 'Errors' : 'Done'
         });
-        
+
         toast(`✅ Batch captured! ${successCount} invoices extracted. Redirecting...`, 'green');
         setTimeout(() => navigate('/batch'), 1500);
       } else {
@@ -116,10 +116,10 @@ export default function UploadInvoices() {
       </div>
 
       {/* Vendor Selection Bar / Tag */}
-      <div style={{ 
-        backgroundColor: 'var(--surface)', 
-        border: `1px solid ${vendorError ? 'var(--amber)' : 'var(--b)'}`, 
-        borderRadius: 'var(--r)', 
+      <div style={{
+        backgroundColor: 'var(--surface)',
+        border: `1px solid ${vendorError ? 'var(--amber)' : 'var(--b)'}`,
+        borderRadius: 'var(--r)',
         padding: '14px 20px',
         display: 'flex',
         alignItems: 'center',
@@ -136,8 +136,8 @@ export default function UploadInvoices() {
         </div>
         <div className="flex items-center gap-3">
           {selectedVendor && <span className="badge b-s">✓ {selectedVendor}</span>}
-          <select 
-            className="select" 
+          <select
+            className="select"
             style={{ width: '200px' }}
             value={selectedVendor}
             onChange={e => {
@@ -154,7 +154,7 @@ export default function UploadInvoices() {
       </div>
 
       {/* Drop Zone */}
-      <div 
+      <div
         onDragEnter={handleDrag}
         onDragLeave={handleDrag}
         onDragOver={handleDrag}
@@ -183,11 +183,11 @@ export default function UploadInvoices() {
           textAlign: 'center'
         }}
       >
-        <input 
-          type="file" 
-          ref={fileInputRef} 
-          style={{ display: 'none' }} 
-          accept=".pdf,.zip,image/*" 
+        <input
+          type="file"
+          ref={fileInputRef}
+          style={{ display: 'none' }}
+          accept=".pdf,.zip,image/*"
           onChange={(e) => {
             if (e.target.files?.length) {
               if (!selectedVendor) {
@@ -196,9 +196,9 @@ export default function UploadInvoices() {
               }
               startProcessing(e.target.files[0]);
             }
-          }} 
+          }}
         />
-        
+
         {fileState === 'idle' && (
           <>
             <div style={{ fontSize: '36px', marginBottom: '12px' }}>📎</div>
@@ -236,14 +236,14 @@ export default function UploadInvoices() {
             <div style={{ fontSize: '36px', marginBottom: '12px' }}>✅</div>
             <h3 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '8px', color: 'var(--green)' }}>Extracted Successfully!</h3>
             <p style={{ color: 'var(--t2)', fontSize: '13px', marginBottom: '16px' }}>
-              {uploadedFile?.isBatch 
-                ? `Processed batch file: ${uploadedFile.name}` 
-                : <>Tagged to <strong>{selectedVendor}</strong> · Confidence: 94%</>}
+              {uploadedFile?.isBatch
+                ? `Processed batch file: ${uploadedFile.name}`
+                : <>Tagged to <strong>{selectedVendor}</strong> · Confidence: {uploadedFile?.extractedData?.confidence || 0}%</>}
             </p>
-            <button 
-              className="btn bp" 
-              onClick={(e) => { 
-                e.stopPropagation(); 
+            <button
+              className="btn bp"
+              onClick={(e) => {
+                e.stopPropagation();
                 if (uploadedFile?.isBatch) {
                   setFileState('idle');
                   return;
@@ -253,16 +253,16 @@ export default function UploadInvoices() {
                   return;
                 }
                 console.log('[FRONTEND] Navigating to Review with data:', uploadedFile.extractedData);
-                navigate('/review', { 
-                  state: { 
-                    filename: uploadedFile.name, 
-                    previewUrl: uploadedFile.url, 
+                navigate('/review', {
+                  state: {
+                    filename: uploadedFile.name,
+                    previewUrl: uploadedFile.extractedData?.previewUrl || uploadedFile.url,
                     fileType: uploadedFile.type,
                     extractedData: uploadedFile.extractedData,
                     vendor: selectedVendor,
                     orgId: currentUser?.orgId
-                  } 
-                }); 
+                  }
+                });
               }}
             >
               {uploadedFile?.isBatch ? 'Upload More' : 'Review Extraction →'}
@@ -274,7 +274,7 @@ export default function UploadInvoices() {
 
       {/* Grid below */}
       <div className="grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-        
+
         {/* Left card - Options */}
         <div className="card">
           <h3 style={{ fontSize: '14px', marginBottom: '16px' }}>Processing Options</h3>
@@ -285,7 +285,7 @@ export default function UploadInvoices() {
                 <div style={{ fontWeight: 500 }}>Auto OCR for scanned PDFs</div>
                 <div style={{ fontSize: '12px', color: 'var(--t2)' }}>Run Tesseract if text fails</div>
               </div>
-              <div 
+              <div
                 className={`toggle ${toggles.ocr ? 'on' : ''}`}
                 onClick={() => setToggles(p => ({ ...p, ocr: !p.ocr }))}
               ><div className="toggle-knob"></div></div>
@@ -296,7 +296,7 @@ export default function UploadInvoices() {
                 <div style={{ fontWeight: 500 }}>Extract line items</div>
                 <div style={{ fontSize: '12px', color: 'var(--t2)' }}>Parse rows to separate sheet</div>
               </div>
-              <div 
+              <div
                 className={`toggle ${toggles.lineItems ? 'on' : ''}`}
                 onClick={() => setToggles(p => ({ ...p, lineItems: !p.lineItems }))}
               ><div className="toggle-knob"></div></div>
@@ -307,7 +307,7 @@ export default function UploadInvoices() {
                 <div style={{ fontWeight: 500 }}>Duplicate check</div>
                 <div style={{ fontSize: '12px', color: 'var(--t2)' }}>Block duplicate invoice+vendor</div>
               </div>
-              <div 
+              <div
                 className={`toggle ${toggles.duplicate ? 'on' : ''}`}
                 onClick={() => setToggles(p => ({ ...p, duplicate: !p.duplicate }))}
               ><div className="toggle-knob"></div></div>
@@ -321,7 +321,7 @@ export default function UploadInvoices() {
             <h3 style={{ fontSize: '14px', margin: 0 }}>Today's Queue</h3>
             <span className="text-xs text-t2">{invoices.length} invoices</span>
           </div>
-          
+
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {invoices.length > 0 ? (
               invoices.slice(0, 5).map(inv => (
@@ -334,7 +334,7 @@ export default function UploadInvoices() {
                       {inv.vendor} · ₹{inv.total}
                     </div>
                   </div>
-                  <span className={`badge ${inv.status === 'Exported' ? 'b-s' : 'b-w'}`}>
+                  <span className={`badge ${inv.status === 'Exported' || inv.status === 'Approved' ? 'b-s' : inv.status === 'Rejected' ? 'b-r' : 'b-w'}`}>
                     {inv.status || 'Done'}
                   </span>
                 </div>
@@ -346,10 +346,10 @@ export default function UploadInvoices() {
             )}
 
             {fileState === 'processing' && uploadedFile && (
-              <div style={{ 
-                padding: '10px 12px', 
-                backgroundColor: 'var(--ag)', 
-                border: '1px solid var(--accent)', 
+              <div style={{
+                padding: '10px 12px',
+                backgroundColor: 'var(--ag)',
+                border: '1px solid var(--accent)',
                 borderRadius: 'var(--rs)',
                 marginTop: '4px'
               }}>
@@ -365,7 +365,7 @@ export default function UploadInvoices() {
                 </div>
               </div>
             )}
-            
+
           </div>
         </div>
 

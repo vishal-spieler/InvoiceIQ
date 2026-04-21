@@ -19,7 +19,7 @@ export default function ProcessingQueue() {
           </div>
           <span className="badge b-i">Live</span>
         </div>
-        
+
         <div className="col gap-2 bg-surface" style={{ backgroundColor: 'var(--surface)', padding: '16px', borderRadius: '8px' }}>
           <div className="grid text-xs text-t3 uppercase mb-2" style={{ gridTemplateColumns: '2fr 1fr 1fr 1fr' }}>
             <span>File</span>
@@ -27,7 +27,7 @@ export default function ProcessingQueue() {
             <span>Step</span>
             <span>Status</span>
           </div>
-          
+
           <div className="grid text-sm pb-2 border-b" style={{ gridTemplateColumns: '2fr 1fr 1fr 1fr', borderBottom: '1px solid var(--b)' }}>
             <span className="mono">INF_2024_001.pdf</span><span className="text-t2">1.1 MB</span><span className="text-t2">AI Extraction</span><span className="text-green">✅ Done</span>
           </div>
@@ -44,7 +44,7 @@ export default function ProcessingQueue() {
             <span className="mono text-t3">INF_2024_005.pdf</span><span className="text-t3">1.8 MB</span><span className="text-t3">Queued</span><span className="text-t3 flex items-center gap-1">⏳ Waiting</span>
           </div>
         </div>
-        
+
         <div className="mt-4">
           <div className="flex justify-between text-xs mb-1">
             <span className="text-accent">40% Complete (2/5)</span>

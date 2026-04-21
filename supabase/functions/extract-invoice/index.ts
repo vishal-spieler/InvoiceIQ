@@ -17,19 +17,19 @@ serve(async (req) => {
   try {
     const formData = await req.formData()
     const file = formData.get('file') as File;
-    
+
     if (!file) {
       return new Response(JSON.stringify({ error: "No file uploaded" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } })
     }
 
     const geminiKey = Deno.env.get('GEMINI_API_KEY');
     if (!geminiKey) {
-       console.error("GEMINI_API_KEY missing from environment secrets");
-       return new Response(JSON.stringify({ error: "API key configuration missing" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } })
+      console.error("GEMINI_API_KEY missing from environment secrets");
+      return new Response(JSON.stringify({ error: "API key configuration missing" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } })
     }
 
     const genAI = new GoogleGenerativeAI(geminiKey);
-    const model = genAI.getGenerativeModel({ 
+    const model = genAI.getGenerativeModel({
       model: 'gemini-2.5-flash-lite',
       generationConfig: { temperature: 0.0, responseMimeType: "application/json" }
     });
@@ -70,7 +70,7 @@ Return ONLY the JSON object. No markdown, no explanation, no code fences.
 
     const result = await model.generateContent([prompt, imagePart]);
     const rawText = result.response.text();
-    
+
     // Strip code fences if API ignores responseMimeType hint
     const jsonStr = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
     let data;
@@ -89,7 +89,7 @@ Return ONLY the JSON object. No markdown, no explanation, no code fences.
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" }
     })
-    
+
   } catch (error) {
     console.error("Function Error:", error);
     return new Response(JSON.stringify({ error: error.message }), {

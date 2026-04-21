@@ -6,9 +6,9 @@ const geminiKey = import.meta.env.VITE_GEMINI_API_KEY;
 
 export async function processLocalExtraction(file, mimeType) {
   if (!geminiKey) throw new Error('VITE_GEMINI_API_KEY missing in .env');
-  
+
   const genAI = new GoogleGenerativeAI(geminiKey);
-  const model = genAI.getGenerativeModel({ 
+  const model = genAI.getGenerativeModel({
     model: 'gemini-2.5-flash-lite',
     generationConfig: {
       temperature: 0.0,
@@ -43,7 +43,7 @@ Return ONLY the JSON object. No markdown, no explanation.
   let binary = '';
   const bytes = new Uint8Array(arrayBuffer);
   for (let i = 0; i < bytes.byteLength; i++) {
-     binary += String.fromCharCode(bytes[i]);
+    binary += String.fromCharCode(bytes[i]);
   }
   const base64Data = window.btoa(binary);
 
@@ -62,7 +62,7 @@ Return ONLY the JSON object. No markdown, no explanation.
     try {
       const result = await model.generateContent([prompt, imagePart]);
       rawText = result.response.text();
-      break; 
+      break;
     } catch (err) {
       lastError = err;
       if (err.status === 503 && attempt < maxRetries) {
@@ -77,28 +77,44 @@ Return ONLY the JSON object. No markdown, no explanation.
   try {
     const jsonStr = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
     const parsed = JSON.parse(jsonStr);
-    
+
     // Quick normalization (converting undefined/null)
     const normalized = {};
+    let foundCoreFields = 0;
+    const coreFields = ['invoiceNo', 'date', 'total', 'vendor'];
+
     for (const key of ['invoiceNo', 'date', 'vendor', 'subtotal', 'sgst', 'cgst', 'igst', 'totalTax', 'total', 'gstin']) {
-       normalized[key] = String(parsed[key] || '');
+      const val = String(parsed[key] || '').trim();
+      normalized[key] = val;
+      if (coreFields.includes(key) && val.length > 0 && val.toLowerCase() !== 'null') {
+        foundCoreFields++;
+      }
     }
-    normalized.confidence = parsed.confidence || 80;
+
+    if (foundCoreFields === 0) {
+      normalized.confidence = 0;
+    } else {
+      const parsedConf = Number(parsed.confidence);
+      normalized.confidence = !isNaN(parsedConf) && parsedConf > 0 ? parsedConf : Math.round((foundCoreFields / coreFields.length) * 100);
+    }
+    
+    // Safety clamp
+    normalized.confidence = Math.min(100, Math.max(0, normalized.confidence));
     normalized.lineItems = parsed.lineItems || [];
     normalized.gst = {
       cgst_rate: parsed.cgst_rate || 0,
       cgst_amount: normalized.cgst,
-      sgst_rate: parsed.sgst_rate || 0, 
+      sgst_rate: parsed.sgst_rate || 0,
       sgst_amount: normalized.sgst,
       igst_rate: parsed.igst_rate || 0,
       igst_amount: normalized.igst,
       total_gst: normalized.totalTax
     };
-    
+
     return {
-       ...normalized,
-       previewUrl: `data:${mimeType};base64,${base64Data}`,
-       fileType: mimeType
+      ...normalized,
+      previewUrl: `data:${mimeType};base64,${base64Data}`,
+      fileType: mimeType
     };
   } catch (err) {
     console.error('Gemini Extraction Error:', err);
@@ -110,17 +126,17 @@ export async function processBatchZip(zipFile) {
   const jszip = new JSZip();
   const zip = await jszip.loadAsync(zipFile);
   const results = [];
-  
+
   const delay = (ms) => new Promise(res => setTimeout(res, ms));
 
   for (const [filename, zipEntry] of Object.entries(zip.files)) {
     if (zipEntry.dir || filename.includes('__MACOSX/') || filename.startsWith('.')) continue;
-    
+
     const ext = filename.split('.').pop().toLowerCase();
     if (!['pdf', 'png', 'jpg', 'jpeg', 'webp'].includes(ext)) continue;
-    
+
     const mimeType = ext === 'pdf' ? 'application/pdf' : `image/${ext === 'jpg' ? 'jpeg' : ext}`;
-    
+
     try {
       const blob = await zipEntry.async('blob');
       const data = await processLocalExtraction(blob, mimeType);
@@ -138,10 +154,10 @@ export async function processBatchZip(zipFile) {
         status: 'error'
       });
     }
-    
+
     // Throttle to respect Gemini's 15 Requests Per Minute limit (Wait 4 seconds between requests)
     await delay(4000);
   }
-  
+
   return results;
 }

@@ -21,14 +21,14 @@ export async function extractTextFromPDF(file) {
   const arrayBuffer = await file.arrayBuffer();
   const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
   let fullText = '';
-  
+
   for (let i = 1; i <= pdf.numPages; i++) {
     const page = await pdf.getPage(i);
     const textContent = await page.getTextContent();
     const pageText = textContent.items.map(item => item.str).join(' ');
     fullText += pageText + '\n';
   }
-  
+
   return fullText;
 }
 
@@ -102,7 +102,7 @@ export async function processInvoice(file) {
   } else {
     text = await extractTextFromImage(file);
   }
-  
+
   const parsed = parseInvoiceData(text);
   return {
     ...parsed,
@@ -119,7 +119,7 @@ export async function processInvoice(file) {
 function parseLineItems(text) {
   const lines = text.split('\n');
   const items = [];
-  
+
   // Greedy regex to find 2-6 trailing numeric values (allows for Qty, Price, Discount, GST, Total)
   // Logic: [Description] [Val1] [Val2] [Val3]...
   // Relaxed strict anchor $ to (?:.*)$ to avoid trailing OCR border noise dropping the entire row

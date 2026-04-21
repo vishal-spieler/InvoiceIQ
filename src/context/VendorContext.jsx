@@ -20,13 +20,13 @@ export function VendorProvider({ children }) {
     const { data } = await supabase.from('vendors').select('*').eq('org_id', currentUser.orgId);
     if (data) {
       setVendors(data.map(v => ({
-        id: v.id, 
-        name: v.name, 
-        gstin: v.gstin, 
+        id: v.id,
+        name: v.name,
+        gstin: v.gstin,
         layout: v.category || 'Structured table',
-        source: 'Upload', 
-        invoices: 0, 
-        accuracy: null, 
+        source: 'Upload',
+        invoices: 0,
+        accuracy: null,
         status: v.status
       })));
     }
@@ -47,7 +47,7 @@ export function VendorProvider({ children }) {
       emails: [],
       rules: { keyword: vendor.keyword, totalKeyword: vendor.totalKeyword }
     }]).select().single();
-    
+
     if (data) {
       await fetchVendors();
     }

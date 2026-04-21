@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useInvoices } from '../context/InvoiceContext';
 import { useAuth } from '../context/AuthContext';
 import { useVendors } from '../context/VendorContext';
@@ -11,22 +11,33 @@ export default function AllInvoices() {
   const { vendors } = useVendors();
 
   const scopedInvoices = React.useMemo(() => {
-    if (currentUser?.role === 'owner') return invoices;
-    if (currentUser?.role === 'employee') return invoices.filter(i => i.userId === currentUser.id);
-    return invoices.filter(i => i.orgId === currentUser?.orgId || !i.orgId);
-  }, [invoices, currentUser]);
+    let scoped = invoices.filter(i => i.orgId === currentUser?.orgId);
+    
+    if (currentUser?.role === 'vendor' || currentUser?.vendorId) {
+      const vObj = vendors.find(v => v.id === currentUser.vendorId);
+      const targetVendorName = vObj ? vObj.name : currentUser.name;
+      scoped = scoped.filter(i => i.vendorId === currentUser.vendorId || i.vendor === targetVendorName);
+    }
+    return scoped;
+  }, [invoices, currentUser, vendors]);
 
-  const [statusFilter, setStatusFilter] = useState('All');
+  const location = useLocation();
+  const [statusFilter, setStatusFilter] = useState(location.state?.statusFilter || 'All');
   const [vendorFilter, setVendorFilter] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
 
   const uniqueVendors = [...new Set(scopedInvoices.map(i => i.vendor).filter(Boolean))];
 
   const filteredInvoices = scopedInvoices.filter(inv => {
-    const matchStatus = statusFilter === 'All' || inv.status === statusFilter;
+    let matchStatus = false;
+    if (statusFilter === 'All') matchStatus = true;
+    else if (statusFilter === 'Done') matchStatus = ['Exported', 'Approved'].includes(inv.status);
+    else if (statusFilter === 'Action Required') matchStatus = ['Pending', 'Needs Review'].includes(inv.status);
+    else matchStatus = inv.status === statusFilter;
+
     const matchVendor = vendorFilter === 'All' || inv.vendor === vendorFilter;
     const searchLower = searchQuery.toLowerCase();
-    const matchSearch = !searchQuery || 
+    const matchSearch = !searchQuery ||
       (inv.vendor && inv.vendor.toLowerCase().includes(searchLower)) ||
       (inv.invoiceNo && inv.invoiceNo.toLowerCase().includes(searchLower));
     return matchStatus && matchVendor && matchSearch;
@@ -36,7 +47,7 @@ export default function AllInvoices() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      
+
       {/* Page Context Row */}
       <div className="flex items-center justify-between">
         <div style={{ color: 'var(--t2)', fontSize: '13px' }}>
@@ -45,7 +56,11 @@ export default function AllInvoices() {
         <div className="flex items-center gap-3">
           <select className="select" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
             <option value="All">All Status</option>
+            <option value="Action Required">Action Required</option>
+            <option value="Done">Done (Approved/Exported)</option>
+            <option value="Approved">Approved</option>
             <option value="Exported">Exported</option>
+            <option value="Rejected">Rejected</option>
             <option value="Pending">Pending</option>
           </select>
           <select className="select" value={vendorFilter} onChange={e => setVendorFilter(e.target.value)}>
@@ -62,10 +77,10 @@ export default function AllInvoices() {
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
         <div className="flex items-center justify-between" style={{ padding: '16px 20px', borderBottom: '1px solid var(--b)' }}>
           <h2 style={{ fontSize: '16px' }}>Invoice Records</h2>
-          <input 
-            className="input" 
-            placeholder="Filter..." 
-            style={{ width: '170px' }} 
+          <input
+            className="input"
+            placeholder="Filter..."
+            style={{ width: '170px' }}
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
           />
@@ -89,7 +104,7 @@ export default function AllInvoices() {
             <tbody>
               {filteredInvoices.length > 0 ? (
                 filteredInvoices.map((inv) => (
-                  <tr key={inv.id} style={{ cursor: 'pointer' }} onClick={() => navigate('/review', { state: { extractedData: inv, filename: inv.filename, fileType: inv.fileType, previewUrl: inv.previewUrl } })}>
+                  <tr key={inv.id} style={{ cursor: 'pointer' }} onClick={() => navigate('/review', { state: { extractedData: inv, filename: inv.filename || inv.invoiceNo, fileType: inv.fileType || 'application/pdf', previewUrl: inv.previewBase64 || inv.previewUrl } })}>
                     <td style={{ textAlign: 'center' }} onClick={e => e.stopPropagation()}>☐</td>
                     <td>{inv.invoiceNo || 'Unknown'}</td>
                     <td>{inv.vendor}</td>
@@ -108,8 +123,8 @@ export default function AllInvoices() {
                         <span className={`text-xs font-bold ${inv.confidence >= 90 ? 'text-green' : inv.confidence >= 70 ? 'text-amber' : 'text-red'}`}>{inv.confidence}%</span>
                       </div>
                     </td>
-                    <td><span className={`badge ${inv.status === 'Exported' ? 'b-s' : 'b-w'}`}>{inv.status || 'Pending'}</span></td>
-                    <td><button className="btn bg btn-xs" onClick={e => { e.stopPropagation(); navigate('/review', { state: { extractedData: inv, filename: inv.filename, fileType: inv.fileType, previewUrl: inv.previewUrl } }); }}>View</button></td>
+                    <td><span className={`badge ${inv.status === 'Exported' || inv.status === 'Approved' ? 'b-s' : inv.status === 'Rejected' ? 'b-r' : 'b-w'}`}>{inv.status || 'Pending'}</span></td>
+                    <td><button className="btn bg btn-xs" onClick={e => { e.stopPropagation(); navigate('/review', { state: { extractedData: inv, filename: inv.filename || inv.invoiceNo, fileType: inv.fileType || 'application/pdf', previewUrl: inv.previewBase64 || inv.previewUrl } }); }}>View</button></td>
                   </tr>
                 ))
               ) : (
