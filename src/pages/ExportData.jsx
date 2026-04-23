@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import ExcelJS from 'exceljs';
 import { useToast } from '../components/Toast';
 import { useInvoices } from '../context/InvoiceContext';
 import { useAuth } from '../context/AuthContext';
@@ -49,72 +50,93 @@ export default function ExportData() {
     return isWithinDate && matchVendor && matchSource;
   });
 
-  const handleExcelExport = () => {
+  const handleExcelExport = async () => {
     if (filteredInvoices.length === 0) {
       toast('⚠ No invoices match the selected filters', 'amber');
       return;
     }
 
-    const headers = [
-      'Invoice No', 'Vendor Name', 'Vendor GSTIN', 'Invoice Date', 'Due Date', 'PO Number',
-      'Currency', 'Subtotal (₹)', 'CGST Rate (%)', 'CGST Amount (₹)', 'SGST Rate (%)', 'SGST Amount (₹)',
-      'IGST Rate (%)', 'IGST Amount (₹)', 'Total GST (₹)', 'Total Amount (₹)', 'Total Override Note', 'Bank Account', 'IFSC Code', 'Extracted At'
-    ];
-
-    // Fallback if gst isn't present on old invoices
     const safeGst = (inv) => inv.gst || { cgst_rate: 0, cgst_amount: 0, sgst_rate: 0, sgst_amount: 0, igst_rate: 0, igst_amount: 0, total_gst: 0 };
 
-    const rows = filteredInvoices.map(inv => [
-      inv.invoiceNo || 'N/A',
-      inv.vendor || 'N/A',
-      inv.gstin || 'N/A',
-      inv.date || 'N/A',
-      inv.dueDate || 'N/A',
-      inv.poNumber || 'N/A',
-      inv.currency || 'INR',
-      inv.subtotal || '0.00',
-      `${safeGst(inv).cgst_rate}%`,
-      safeGst(inv).cgst_amount,
-      `${safeGst(inv).sgst_rate}%`,
-      safeGst(inv).sgst_amount,
-      `${safeGst(inv).igst_rate}%`,
-      safeGst(inv).igst_amount,
-      safeGst(inv).total_gst,
-      inv.total || '0.00',
-      inv.totalModifiedBy ? `Modified by ${inv.totalModifiedBy}` : '',
-      inv.bankAccount || 'N/A',
-      inv.ifsc || 'N/A',
-      inv.createdAt ? new Date(inv.createdAt).toLocaleString() : 'N/A'
-    ]);
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Invoices');
+    worksheet.properties.outlineProperties = { summaryBelow: false, summaryRight: false };
 
-    const escapeCSV = (field) => {
-      if (field === undefined || field === null) return '""';
-      const str = String(field);
-      if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-        return `"${str.replace(/"/g, '""')}"`;
+    worksheet.columns = [
+      { header: 'Type', key: 'type', width: 12 },
+      { header: 'Invoice No', key: 'invoiceNo', width: 22 },
+      { header: 'Vendor Name', key: 'vendorName', width: 30 },
+      { header: 'Seller GSTIN', key: 'sellerGstin', width: 20 },
+      { header: 'Buyer GSTIN', key: 'buyerGstin', width: 20 },
+      { header: 'Invoice Date', key: 'date', width: 15 },
+      { header: 'Status', key: 'status', width: 12 },
+      { header: 'Currency', key: 'currency', width: 10 },
+      { header: 'Subtotal', key: 'subtotal', width: 15 },
+      { header: 'Packaging (₹)', key: 'packagingAmount', width: 15 },
+      { header: 'Total GST', key: 'totalGst', width: 15 },
+      { header: 'Total Amount', key: 'total', width: 15 },
+      { header: 'Item Description', key: 'desc', width: 40 },
+      { header: 'Item HSN', key: 'hsn', width: 15 },
+      { header: 'Item Qty', key: 'qty', width: 10 },
+      { header: 'Item Rate', key: 'rate', width: 15 },
+      { header: 'Item Discount', key: 'discount', width: 12 },
+      { header: 'Item Total', key: 'itemTotal', width: 15 }
+    ];
+
+    worksheet.getRow(1).font = { bold: true };
+    worksheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE1E1E1' } };
+
+    filteredInvoices.forEach(inv => {
+      const g = safeGst(inv);
+      const mainRow = worksheet.addRow({
+        type: 'INVOICE',
+        invoiceNo: inv.invoiceNo || 'N/A',
+        vendorName: inv.vendor || 'N/A',
+        sellerGstin: inv.sellerGstin || 'N/A',
+        buyerGstin: inv.buyerGstin || 'N/A',
+        date: inv.date || 'N/A',
+        status: inv.status || 'Pending',
+        currency: inv.currency || 'INR',
+        subtotal: inv.subtotal || '0.00',
+        packagingAmount: inv.packagingAmount || '0.00',
+        totalGst: g.total_gst || 0,
+        total: inv.total || '0.00',
+        desc: '', hsn: '', qty: '', rate: '', discount: '', itemTotal: ''
+      });
+      mainRow.font = { bold: true };
+
+      if (inv.lineItems && inv.lineItems.length > 0) {
+        inv.lineItems.forEach(li => {
+          const childRow = worksheet.addRow({
+            type: 'LINE ITEM',
+            invoiceNo: '', vendorName: '', sellerGstin: '', buyerGstin: '', date: '', status: '', currency: '',
+            subtotal: '', packagingAmount: '', totalGst: '', total: '',
+            desc: li.description || '',
+            hsn: li.hsn || '',
+            qty: li.qty || '',
+            rate: li.rate || '',
+            discount: li.discount || '',
+            itemTotal: li.total || ''
+          });
+          childRow.outlineLevel = 1;
+        });
       }
-      return str;
-    };
+    });
 
-    const csvContent = [
-      headers.map(escapeCSV).join(','),
-      ...rows.map(row => row.map(escapeCSV).join(','))
-    ].join('\n');
-
-    // Add utf-8 BOM to ensure Excel reads it properly
-    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
 
     link.href = url;
-    link.setAttribute('download', `invoices_export_${new Date().toISOString().split('T')[0]}.csv`);
+    link.download = `invoices_export_${new Date().toISOString().split('T')[0]}.xlsx`;
 
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
 
-    toast(`📊 Downloaded ${filteredInvoices.length} invoices as CSV`, 'green');
+    toast(`📊 Downloaded ${filteredInvoices.length} invoices as XLSX`, 'green');
   };
 
   const handleDbPush = () => {

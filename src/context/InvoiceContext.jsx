@@ -24,7 +24,6 @@ export function InvoiceProvider({ children }) {
   }, [currentUser]);
 
   const fetchInvoices = async () => {
-    // join to get vendor name
     const { data, error } = await supabase
       .from('invoices')
       .select('*, vendors(name), invoice_line_items(*)')
@@ -34,8 +33,8 @@ export function InvoiceProvider({ children }) {
     if (error) {
       console.error('Error fetching invoices:', error);
     } else if (data) {
-      // Map back to camelCase
-      setInvoices(data.map(inv => ({
+      // Map back to camelCase and filter out soft deletes via Javascript to avoid strict Postgres schema errors if migration is pending
+      setInvoices(data.filter(inv => inv.is_deleted !== true).map(inv => ({
         id: inv.id,
         orgId: inv.org_id,
         vendorId: inv.vendor_id,
@@ -50,6 +49,9 @@ export function InvoiceProvider({ children }) {
         status: inv.status,
         source: inv.source,
         batchId: inv.batch_id,
+        buyerGstin: inv.buyer_gstin,
+        sellerGstin: inv.seller_gstin,
+        packagingAmount: inv.packaging_amount,
         previewBase64: inv.preview_base64,
         createdAt: inv.created_at,
         lineItems: inv.invoice_line_items ? inv.invoice_line_items.map(li => ({
@@ -99,10 +101,13 @@ export function InvoiceProvider({ children }) {
     const sanitizeDate = (val) => {
       if (!val) return null;
       const str = String(val).trim();
-      // Detect DD-MM-YYYY or DD/MM/YYYY
-      const parts = str.match(/^(\d{2})[-/](\d{2})[-/](\d{4})$/);
+      const parts = str.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{2,4})$/);
       if (parts) {
-        return `${parts[3]}-${parts[2]}-${parts[1]}`;
+        const day = parts[1].padStart(2, '0');
+        const month = parts[2].padStart(2, '0');
+        let year = parts[3];
+        if (year.length === 2) year = '20' + year;
+        return `${year}-${month}-${day}`;
       }
       return str; // let it pass-through for DB to attempt standard parse
     };
@@ -120,6 +125,9 @@ export function InvoiceProvider({ children }) {
       status: invoiceData.status || 'Pending',
       source: invoiceData.source || 'Upload',
       batch_id: invoiceData.batchId || null,
+      buyer_gstin: invoiceData.buyerGstin || null,
+      seller_gstin: invoiceData.sellerGstin || null,
+      packaging_amount: invoiceData.packagingAmount || null,
       preview_base64: invoiceData.previewBase64 || invoiceData.previewUrl || null
     };
 
@@ -180,7 +188,8 @@ export function InvoiceProvider({ children }) {
   };
 
   const removeInvoice = async (id) => {
-    const { error } = await supabase.from('invoices').delete().eq('id', id);
+    // Perform a soft delete by updating the is_deleted flag instead of permanently destroying the row
+    const { error } = await supabase.from('invoices').update({ is_deleted: true }).eq('id', id);
     if (!error) {
       setInvoices(prev => prev.filter(inv => inv.id !== id));
     } else {

@@ -14,6 +14,7 @@ export default function ReviewEdit() {
 
   const { isBatch, batchId, batchResults, vendor: initialVendor } = location.state || {};
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const currentItem = isBatch && batchResults ? batchResults[currentIndex] : location.state;
   const { filename = 'INV-20240311', previewUrl, fileType, extractedData, vendor, orgId } = currentItem || {};
@@ -25,7 +26,7 @@ export default function ReviewEdit() {
   const generateData = () => {
     const defaultData = extractedData ? {
       ...extractedData,
-      vendor: currentVendor || extractedData.vendor || 'Unknown / Not Found',
+      vendor: extractedData.vendor || currentVendor || 'Unknown / Not Found',
       lineItems: extractedData.lineItems || [],
       gst: extractedData.gst || {
         cgst_rate: parseFloat(extractedData.cgst_rate) || 0, cgst_amount: parseFloat(extractedData.cgst) || 0,
@@ -34,16 +35,16 @@ export default function ReviewEdit() {
         total_gst: parseFloat(extractedData.totalTax) || 0
       }
     } : {
-      invoiceNo: '', date: '', vendor: 'Unknown / Not Found', subtotal: '0.00',
-      sgst: '0.00', cgst: '0.00', igst: '0.00', totalTax: '0.00', total: '0.00', confidence: 0,
+      invoiceNo: '', date: '', vendor: 'Unknown / Not Found', subtotal: '0.00', packagingAmount: '0.00',
+      sgst: '0.00', cgst: '0.00', igst: '0.00', totalTax: '0.00', total: '0.00', confidence: 0, buyerGstin: '', sellerGstin: '',
       gst: { cgst_rate: 0, cgst_amount: 0, sgst_rate: 0, sgst_amount: 0, igst_rate: 0, igst_amount: 0, total_gst: 0 },
       lineItems: []
     };
 
     if (!extractedData && filename === 'INV-20240311') {
       Object.assign(defaultData, {
-        invoiceNo: 'INV-2024/03/11', date: '2024-03-11', vendor: 'Tata Consultancy Services Ltd', gstin: '27AAACT3518Q1ZZ',
-        subtotal: '728000.00', sgst: '0.00', cgst: '0.00', igst: '131040.00', totalTax: '131040.00', total: '859040.00', confidence: 86,
+        invoiceNo: 'INV-2024/03/11', date: '2024-03-11', vendor: 'Tata Consultancy Services Ltd', sellerGstin: '27AAACT3518Q1ZZ', buyerGstin: '27AABCU9603R1ZM',
+        subtotal: '728000.00', packagingAmount: '0.00', sgst: '0.00', cgst: '0.00', igst: '131040.00', totalTax: '131040.00', total: '859040.00', confidence: 86,
         gst: { cgst_rate: 0, cgst_amount: 0, sgst_rate: 0, sgst_amount: 0, igst_rate: 18, igst_amount: 131040, total_gst: 131040 },
         lineItems: [
           { description: 'IT Consulting', qty: '160', rate: '3,500', total: '5,60,000' },
@@ -70,10 +71,27 @@ export default function ReviewEdit() {
   };
 
   const parsedSub = parseFloat(String(formData.subtotal || '').replace(/,/g, '') || 0);
+  const parsedPkg = parseFloat(String(formData.packagingAmount || '').replace(/,/g, '') || 0);
   const parsedTax = parseFloat(formData.gst?.total_gst || formData.totalTax || 0);
   const parsedTotal = parseFloat(String(formData.total || '').replace(/,/g, '') || 0);
+  
+  const handleLineItemChange = (index, field, value) => {
+    setFormData(prev => {
+      const newItems = [...prev.lineItems];
+      newItems[index] = { ...newItems[index], [field]: value };
+      return { ...prev, lineItems: newItems };
+    });
+  };
 
-  const hasMathMismatch = Math.round(parsedSub + parsedTax) !== Math.round(parsedTotal);
+  const gstRatesMissing = (formData.gst.cgst_amount > 0 && !(formData.gst.cgst_rate > 0)) ||
+                          (formData.gst.sgst_amount > 0 && !(formData.gst.sgst_rate > 0)) ||
+                          (formData.gst.igst_amount > 0 && !(formData.gst.igst_rate > 0));
+
+  const mathWithPackaging = Math.round(parsedSub + parsedPkg + parsedTax);
+  const mathWithoutPackaging = Math.round(parsedSub + parsedTax);
+  const targetTotal = Math.round(parsedTotal);
+  
+  const hasMathMismatch = (mathWithPackaging !== targetTotal) && (mathWithoutPackaging !== targetTotal);
 
   const handleGSTChange = (field, value) => {
     const num = parseFloat(value) || 0;
@@ -86,57 +104,105 @@ export default function ReviewEdit() {
 
   const hasGstConflict = formData.gst.igst_amount > 0 && (formData.gst.cgst_amount > 0 || formData.gst.sgst_amount > 0);
 
-  const handleReject = () => {
-    addInvoice({
-      ...formData,
-      filename,
-      fileType: fileType || 'application/pdf',
-      previewUrl,
-      source: isBatch ? 'Batch Job' : 'Upload',
-      status: 'Rejected',
-      batchId: isBatch ? batchId : undefined,
-      orgId,
-      userId: currentUser?.id
-    });
+  const isBuyerGstinMissing = !formData.buyerGstin || formData.buyerGstin.trim() === '';
+  const isGstinDuplicated = formData.buyerGstin === formData.sellerGstin && formData.buyerGstin !== '';
+  const buyerGstinErrorColor = (isBuyerGstinMissing || isGstinDuplicated) ? 'var(--red)' : 'var(--b2)';
 
-    if (isBatch) {
-      if (currentIndex < batchResults.length - 1) {
-        toast(`⚠ Marked as Rejected! Loading next... (${currentIndex + 1}/${batchResults.length})`, 'amber');
-        setCurrentIndex(currentIndex + 1);
-      } else {
-        toast(`✅ Batch Review Complete!`, 'green');
-        navigate('/batch');
+  let errorsCount = 0;
+  if (!formData.invoiceNo) errorsCount++;
+  if (!formData.date) errorsCount++;
+  if (isBuyerGstinMissing || isGstinDuplicated) errorsCount++;
+  if (hasMathMismatch) errorsCount++;
+  if (hasGstConflict) errorsCount++;
+  if (gstRatesMissing) errorsCount++;
+  
+  if (formData.lineItems) {
+    formData.lineItems.forEach(item => {
+      const qty = parseFloat(String(item.qty || '').replace(/,/g, '')) || 0;
+      const rate = parseFloat(String(item.rate || '').replace(/,/g, '')) || 0;
+      const disc = parseFloat(String(item.discount || '').replace(/,/g, '')) || 0;
+      const expected = (qty * rate) - disc;
+      const actual = parseFloat(String(item.total || '').replace(/,/g, '')) || 0;
+      if (qty > 0 && Math.abs(expected - actual) > 1.5) {
+        errorsCount++;
       }
-    } else {
-      toast('⚠ Invoice marked as rejected', 'amber');
-      navigate('/invoices');
+    });
+  }
+
+  const reviewMessage = errorsCount > 0 
+    ? `${errorsCount} field${errorsCount > 1 ? 's' : ''} require${errorsCount === 1 ? 's' : ''} attention` 
+    : 'All fields correctly validated';
+  const reviewMessageColor = errorsCount > 0 ? 'var(--amber)' : 'var(--green)';
+
+  const handleReject = async () => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+
+    try {
+      const res = await addInvoice({
+        ...formData,
+        filename,
+        fileType: fileType || 'application/pdf',
+        previewUrl,
+        source: isBatch ? 'Batch Job' : 'Upload',
+        status: 'Rejected',
+        batchId: isBatch ? batchId : undefined,
+        orgId,
+        userId: currentUser?.id
+      });
+
+      if (!res) return;
+
+      if (isBatch) {
+        if (currentIndex < batchResults.length - 1) {
+          toast(`⚠ Marked as Rejected! Loading next... (${currentIndex + 1}/${batchResults.length})`, 'amber');
+          setCurrentIndex(currentIndex + 1);
+        } else {
+          toast(`✅ Batch Review Complete!`, 'green');
+          navigate('/batch');
+        }
+      } else {
+        toast('⚠ Invoice marked as rejected', 'amber');
+        navigate('/invoices');
+      }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleApprove = () => {
-    addInvoice({
-      ...formData,
-      filename,
-      fileType: fileType || 'application/pdf',
-      previewUrl,
-      source: isBatch ? 'Batch Job' : 'Upload',
-      status: 'Approved',
-      batchId: isBatch ? batchId : undefined,
-      orgId,
-      userId: currentUser?.id
-    });
+  const handleApprove = async () => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
 
-    if (isBatch) {
-      if (currentIndex < batchResults.length - 1) {
-        toast(`✅ Saved! Loading next invoice... (${currentIndex + 1}/${batchResults.length})`, 'green');
-        setCurrentIndex(currentIndex + 1);
+    try {
+      const res = await addInvoice({
+        ...formData,
+        filename,
+        fileType: fileType || 'application/pdf',
+        previewUrl,
+        source: isBatch ? 'Batch Job' : 'Upload',
+        status: 'Approved',
+        batchId: isBatch ? batchId : undefined,
+        orgId,
+        userId: currentUser?.id
+      });
+
+      if (!res) return;
+
+      if (isBatch) {
+        if (currentIndex < batchResults.length - 1) {
+          toast(`✅ Saved! Loading next invoice... (${currentIndex + 1}/${batchResults.length})`, 'green');
+          setCurrentIndex(currentIndex + 1);
+        } else {
+          toast(`✅ Batch Review Complete!`, 'green');
+          navigate('/batch');
+        }
       } else {
-        toast(`✅ Batch Review Complete!`, 'green');
-        navigate('/batch');
+        toast('✅ Approved and exported', 'green');
+        navigate('/invoices');
       }
-    } else {
-      toast('✅ Approved and exported', 'green');
-      navigate('/invoices');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -171,16 +237,16 @@ export default function ReviewEdit() {
           <button 
             className="btn bd btn-sm" 
             onClick={handleReject}
-            disabled={data.status === 'Rejected'}
+            disabled={data.status === 'Rejected' || isSubmitting}
           >
-            {data.status === 'Rejected' ? 'Rejected' : 'Reject'}
+            {isSubmitting ? 'Processing...' : (data.status === 'Rejected' ? 'Rejected' : 'Reject')}
           </button>
           <button 
             className="btn bs2 btn-sm" 
             onClick={handleApprove}
-            disabled={data.status === 'Approved' || data.status === 'Exported'}
+            disabled={data.status === 'Approved' || data.status === 'Exported' || isSubmitting}
           >
-            {data.status === 'Approved' || data.status === 'Exported' ? 'Approved' : 'Approve & Export'}
+            {isSubmitting ? 'Processing...' : (data.status === 'Approved' || data.status === 'Exported' ? 'Approved' : 'Approve & Export')}
           </button>
         </div>
       </div>
@@ -249,7 +315,9 @@ export default function ReviewEdit() {
           <div className="flex items-center justify-between" style={{ padding: '16px 20px', borderBottom: '1px solid var(--b)' }}>
             <div>
               <h2 style={{ fontSize: '16px', marginBottom: '4px' }}>Extracted Fields</h2>
-              <div style={{ fontSize: '12px', color: 'var(--amber)' }}>3 fields need review</div>
+              <div style={{ fontSize: '12px', color: reviewMessageColor, fontWeight: errorsCount === 0 ? 600 : 'normal' }}>
+                {reviewMessage}
+              </div>
             </div>
 
             {/* SVG Confidence Ring */}
@@ -285,16 +353,28 @@ export default function ReviewEdit() {
 
               <div className="form-group">
                 <div className="flex items-center justify-between">
-                  <label className="form-label">Vendor Name</label>
+                  <label className="form-label">Vendor Name <span className="text-t3">(Extracted)</span></label>
                 </div>
-                <input className="input" value={formData.vendor} onChange={(e) => setFormData({ ...formData, vendor: e.target.value })} />
+                <input className="input" value={formData.vendor} onChange={(e) => setFormData({ ...formData, vendor: e.target.value })} style={{ backgroundColor: 'var(--s3)' }} />
               </div>
 
               <div className="form-group">
                 <div className="flex items-center justify-between">
-                  <label className="form-label">Vendor GST</label>
+                  <label className="form-label" style={{ color: isGstinDuplicated ? 'var(--red)' : '' }}>Seller GSTIN</label>
                 </div>
-                <input className="input" value={formData.gstin} onChange={(e) => setFormData({ ...formData, gstin: e.target.value })} />
+                <input className="input" value={formData.sellerGstin || ''} onChange={(e) => setFormData({ ...formData, sellerGstin: e.target.value })} style={{ borderColor: isGstinDuplicated ? 'var(--red)' : 'var(--b2)' }} />
+              </div>
+
+              <div className="form-group">
+                <div className="flex items-center justify-between">
+                  <label className="form-label" style={{ color: (isBuyerGstinMissing || isGstinDuplicated) ? 'var(--red)' : '' }}>
+                    Buyer GSTIN {(isBuyerGstinMissing || isGstinDuplicated) && <span style={{ color: 'var(--red)', fontSize: '14px', marginLeft: '2px' }}>*</span>}
+                  </label>
+                  <span className={`text-xs ${!isBuyerGstinMissing && !isGstinDuplicated ? 'text-green' : 'text-amber'} font-bold`}>{!isBuyerGstinMissing && !isGstinDuplicated ? 'FOUND' : 'MISSING'}</span>
+                </div>
+                <input className="input" value={formData.buyerGstin || ''} onChange={(e) => setFormData({ ...formData, buyerGstin: e.target.value })} style={{ borderColor: buyerGstinErrorColor }} />
+                {isBuyerGstinMissing && <div className="text-xs text-red mt-1">⚠ Buyer GSTIN missing. Please type manually.</div>}
+                {isGstinDuplicated && <div className="text-xs text-red mt-1">⚠ Error: AI duplicated the Seller GSTIN.</div>}
               </div>
 
               {formData.poNumber && (
@@ -324,6 +404,14 @@ export default function ReviewEdit() {
 
               <div className="form-group">
                 <div className="flex items-center justify-between">
+                  <label className="form-label">Packaging Amount</label>
+                  <span className={`text-xs ${formData.packagingAmount && formData.packagingAmount !== '0' && formData.packagingAmount !== '0.00' ? 'text-green' : 'text-t3'} font-bold`}>{formData.packagingAmount && formData.packagingAmount !== '0' && formData.packagingAmount !== '0.00' ? 'FOUND' : '-'}</span>
+                </div>
+                <input className="input" value={formData.packagingAmount || ''} onChange={e => setFormData({ ...formData, packagingAmount: e.target.value })} />
+              </div>
+
+              <div className="form-group">
+                <div className="flex items-center justify-between">
                   <label className="form-label font-bold" style={{ color: hasMathMismatch ? 'var(--red)' : '' }}>
                     Total Amount {hasMathMismatch && <span style={{ color: 'var(--red)', fontSize: '14px', marginLeft: '2px' }}>*</span>}
                   </label>
@@ -333,7 +421,7 @@ export default function ReviewEdit() {
                 </div>
                 <input className="input" value={formData.total} onChange={e => handleTotalChange(e.target.value)} style={{ borderColor: hasMathMismatch ? 'var(--red)' : (formData.total ? 'var(--b2)' : 'var(--amber)') }} />
                 {!formData.total && <div className="text-xs text-red mt-1">⚠ OCR could not confidently identify total due</div>}
-                {hasMathMismatch && <div className="text-xs text-red mt-1">⚠ Subtotal + Tax ({Math.round(parsedSub + parsedTax)}) does not match Total ({Math.round(parsedTotal)}).</div>}
+                {hasMathMismatch && <div className="text-xs text-red mt-1">⚠ Calculated mathematically ({mathWithPackaging} or {mathWithoutPackaging}) does not match Total ({targetTotal}).</div>}
               </div>
 
               <div style={{ height: '1px', backgroundColor: 'var(--b)', margin: '16px 0 8px' }}></div>
@@ -405,6 +493,14 @@ export default function ReviewEdit() {
                 </div>
               )}
 
+              {gstRatesMissing && (
+                <div style={{ backgroundColor: 'rgba(239,68,68,0.1)', border: '1px solid var(--red)', borderRadius: 'var(--rs)', padding: '12px', marginTop: '8px' }}>
+                  <div style={{ color: 'var(--red)', fontSize: '13px' }}>
+                    <span style={{ fontWeight: 'bold' }}>❌ Missing GST Rates</span> — A GST amount was found, but the corresponding GST percentage rate is missing.
+                  </div>
+                </div>
+              )}
+
               <div style={{ height: '1px', backgroundColor: 'var(--b)', margin: '16px 0 8px' }}></div>
 
               <h3 style={{ fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t2)' }}>
@@ -425,18 +521,37 @@ export default function ReviewEdit() {
                   </thead>
                   <tbody>
                     {formData.lineItems && formData.lineItems.length > 0 ? (
-                      formData.lineItems.map((item, idx) => (
-                        <tr key={idx} style={{ backgroundColor: 'transparent' }}>
-                          <td style={{ fontSize: '12px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={item.description}>
-                            {item.description}
-                          </td>
-                          <td style={{ fontSize: '12px', color: 'var(--t3)' }}>{item.hsn || '—'}</td>
-                          <td style={{ fontSize: '12px' }}>{item.qty}</td>
-                          <td style={{ fontSize: '12px' }}>{item.rate}</td>
-                          <td style={{ fontSize: '12px', color: item.discount ? 'var(--green)' : 'inherit' }}>{item.discount || '-'}</td>
-                          <td style={{ fontSize: '12px' }}>{item.total}</td>
-                        </tr>
-                      ))
+                      formData.lineItems.map((item, idx) => {
+                        const qty = parseFloat(String(item.qty || '').replace(/,/g, '')) || 0;
+                        const rate = parseFloat(String(item.rate || '').replace(/,/g, '')) || 0;
+                        const disc = parseFloat(String(item.discount || '').replace(/,/g, '')) || 0;
+                        const expected = (qty * rate) - disc;
+                        const actual = parseFloat(String(item.total || '').replace(/,/g, '')) || 0;
+                        const isLineError = qty > 0 && Math.abs(expected - actual) > 1.5;
+
+                        return (
+                          <tr key={idx} style={{ backgroundColor: 'transparent' }}>
+                            <td style={{ padding: '4px' }}>
+                              <input className="input" style={{ width: '100%', height: '28px', fontSize: '11px', padding: '0 4px' }} value={item.description || ''} onChange={e => handleLineItemChange(idx, 'description', e.target.value)} />
+                            </td>
+                            <td style={{ padding: '4px' }}>
+                              <input className="input" style={{ width: '100%', height: '28px', fontSize: '11px', padding: '0 4px' }} value={item.hsn || ''} onChange={e => handleLineItemChange(idx, 'hsn', e.target.value)} />
+                            </td>
+                            <td style={{ padding: '4px' }}>
+                              <input className="input" style={{ width: '100%', height: '28px', fontSize: '11px', padding: '0 4px' }} value={item.qty || ''} onChange={e => handleLineItemChange(idx, 'qty', e.target.value)} />
+                            </td>
+                            <td style={{ padding: '4px' }}>
+                              <input className="input" style={{ width: '100%', height: '28px', fontSize: '11px', padding: '0 4px' }} value={item.rate || ''} onChange={e => handleLineItemChange(idx, 'rate', e.target.value)} />
+                            </td>
+                            <td style={{ padding: '4px' }}>
+                              <input className="input" style={{ width: '100%', height: '28px', fontSize: '11px', padding: '0 4px' }} value={item.discount || ''} onChange={e => handleLineItemChange(idx, 'discount', e.target.value)} />
+                            </td>
+                            <td style={{ padding: '4px' }}>
+                              <input className="input" style={{ width: '100%', height: '28px', fontSize: '11px', padding: '0 4px', borderColor: isLineError ? 'var(--red)' : '' }} value={item.total || ''} onChange={e => handleLineItemChange(idx, 'total', e.target.value)} title={isLineError ? `Math mismatch! Expected: ${expected.toFixed(2)}` : ''}/>
+                            </td>
+                          </tr>
+                        );
+                      })
                     ) : (
                       <tr>
                         <td colSpan="4" style={{ textAlign: 'center', padding: '20px', color: 'var(--t3)', fontSize: '12px' }}>
