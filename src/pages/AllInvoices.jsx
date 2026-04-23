@@ -6,7 +6,7 @@ import { useVendors } from '../context/VendorContext';
 
 export default function AllInvoices() {
   const navigate = useNavigate();
-  const { invoices } = useInvoices();
+  const { invoices, removeInvoice } = useInvoices();
   const { currentUser } = useAuth();
   const { vendors } = useVendors();
 
@@ -124,7 +124,12 @@ export default function AllInvoices() {
                       </div>
                     </td>
                     <td><span className={`badge ${inv.status === 'Exported' || inv.status === 'Approved' ? 'b-s' : inv.status === 'Rejected' ? 'b-r' : 'b-w'}`}>{inv.status || 'Pending'}</span></td>
-                    <td><button className="btn bg btn-xs" onClick={e => { e.stopPropagation(); navigate('/review', { state: { extractedData: inv, filename: inv.filename || inv.invoiceNo, fileType: inv.fileType || 'application/pdf', previewUrl: inv.previewBase64 || inv.previewUrl } }); }}>View</button></td>
+                    <td>
+                      <div className="flex items-center gap-2">
+                        <button className="btn bg btn-xs" onClick={e => { e.stopPropagation(); navigate('/review', { state: { extractedData: inv, filename: inv.filename || inv.invoiceNo, fileType: inv.fileType || 'application/pdf', previewUrl: inv.previewBase64 || inv.previewUrl } }); }}>View</button>
+                        <button className="btn bg btn-xs" style={{ color: 'var(--red)', borderColor: 'rgba(239, 68, 68, 0.2)' }} onClick={e => { e.stopPropagation(); if (window.confirm('Are you sure you want to completely delete this invoice?')) removeInvoice(inv.id); }}>Delete</button>
+                      </div>
+                    </td>
                   </tr>
                 ))
               ) : (

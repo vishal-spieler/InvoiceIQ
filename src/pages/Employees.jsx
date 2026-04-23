@@ -64,7 +64,7 @@ export default function Employees() {
     setMAccess(nextAccess);
   };
 
-  const saveModal = () => {
+  const saveModal = async () => {
     if (!mName || !mEmail || (!mPass && !editingEmp)) {
       return toast('Please fill all required fields', 'amber');
     }
@@ -80,16 +80,16 @@ export default function Employees() {
     };
 
     if (editingEmp) {
-      const res = updateEmployee(editingEmp.id, data);
+      const res = await updateEmployee(editingEmp.id, data);
       toast('✅ Employee updated', 'green');
       setShowModal(false);
     } else {
-      const res = addEmployee(data);
+      const res = await addEmployee(data);
       if (res.success) {
         toast('✅ Employee account created', 'green');
         setShowModal(false);
       } else {
-        toast(res.error, 'red');
+        toast(res.error || 'Failed to create employee', 'red');
       }
     }
   };

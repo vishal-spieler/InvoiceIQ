@@ -89,10 +89,7 @@ export function AuthProvider({ children }) {
     }
 
     if (!authUserId) {
-      // Deep MVP bypass (if they created a user with a custom password but Supabase blocked their login)
-      const { data: deepestFallback } = await supabase.from('users').select('id').eq('email', email.toLowerCase()).single();
-      if (deepestFallback) authUserId = deepestFallback.id;
-      else return { success: false, error: authError || "Invalid login credentials." };
+      return { success: false, error: authError || "Invalid login credentials." };
     }
 
     const { data: userProfile } = await supabase.from('users').select('*').eq('id', authUserId).single();

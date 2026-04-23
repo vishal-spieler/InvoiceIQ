@@ -12,14 +12,14 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState(null);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
-    const result = login(email, password);
+    const result = await login(email, password);
     if (result.success) {
       navigate('/dashboard');
     } else {
-      setError(result.error);
+      setError(result.error || "An unexpected error occurred.");
     }
   };
 
